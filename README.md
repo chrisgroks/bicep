@@ -1,3 +1,8 @@
+> **Fork Notice**  
+> This repository is an *unmodified* fork of [Azure/bicep](https://github.com/Azure/bicep).  
+> All authorship, copyright, and ownership remain with the original authors.  
+> Modifications are limited to packaging and publication on the OpenVSX Marketplace.
+
 [![Build](https://github.com/Azure/bicep/actions/workflows/build.yml/badge.svg)](https://github.com/Azure/bicep/actions/workflows/build.yml)
 [![Test Azure CLI Integration](https://github.com/Azure/bicep/actions/workflows/test-azure-cli-integration.yml/badge.svg?branch=main)](https://github.com/Azure/bicep/actions/workflows/test-azure-cli-integration.yml)
 [![Needs Upvote](https://img.shields.io/github/issues/Azure/Bicep/Needs%3A%20Upvote?color=green&label=Needs%3A%20Upvote&style=flat)](https://github.com/Azure/bicep/issues?q=is%3Aopen+is%3Aissue+label%3A%22Needs%3A+Upvote%22+sort%3Areactions-%2B1-asc)
