@@ -21,9 +21,9 @@ public record ExperimentalFeaturesEnabled(
     bool LocalDeploy,
     bool ResourceInfoCodegen,
     bool ModuleExtensionConfigs,
-    bool DesiredStateConfiguration,
-    bool OnlyIfNotExists,
-    bool ModuleIdentity)
+    bool UserDefinedConstraints,
+    bool DeployCommands,
+    bool ThisNamespace)
 {
     public static ExperimentalFeaturesEnabled Bind(JsonElement element)
         => element.ToNonNullObject<ExperimentalFeaturesEnabled>();
@@ -42,7 +42,7 @@ public record ExperimentalFeaturesEnabled(
         LocalDeploy: false,
         ResourceInfoCodegen: false,
         ModuleExtensionConfigs: false,
-        DesiredStateConfiguration: false,
-        OnlyIfNotExists: false,
-        ModuleIdentity: false);
+        UserDefinedConstraints: false,
+        DeployCommands: false,
+        ThisNamespace: false);
 }

@@ -188,6 +188,9 @@ namespace Bicep.Core.TypeSystem
 
                 case VariableDeclarationSyntax variableDeclaration:
                     return GetVariableTypeIfDefined(variableDeclaration);
+
+                case UsingWithClauseSyntax usingWithClause:
+                    return GetUsingConfigAssignmentType(usingWithClause);
             }
 
             return null;
@@ -242,7 +245,9 @@ namespace Bicep.Core.TypeSystem
 
             if (semanticModel.Parameters.TryGetValue(syntax.Name.IdentifierName, out var parameterMetadata))
             {
-                return parameterMetadata.TypeReference.Type;
+                var type = parameterMetadata.TypeReference.Type;
+
+                return resourceDerivedTypeResolver.ResolveResourceDerivedTypes(type);
             }
 
             return null;
@@ -1218,6 +1223,13 @@ namespace Bicep.Core.TypeSystem
             return extMetadata.ConfigAssignmentDeclaredType;
         }
 
+        private DeclaredTypeAssignment? GetUsingConfigAssignmentType(UsingWithClauseSyntax syntax)
+        {
+            var usingConfigType = LanguageConstants.CreateUsingConfigType();
+
+            return TryCreateAssignment(usingConfigType, syntax);
+        }
+
         private DeclaredTypeAssignment? GetExtensionConfigAssignmentType(ExtensionConfigAssignmentSyntax extConfigAssignment)
         {
             if (GetDeclaredExtensionConfigAssignmentType(extConfigAssignment) is { } configType)
@@ -1284,6 +1296,10 @@ namespace Bicep.Core.TypeSystem
 
                 case WildcardImportSymbol wildcardImportSymbol:
                     return new DeclaredTypeAssignment(wildcardImportSymbol.Type, declaringSyntax: null);
+
+                case LocalThisNamespaceSymbol localThisNamespace:
+                    // the syntax node is referencing a local 'this' namespace - use its declared type
+                    return new DeclaredTypeAssignment(localThisNamespace.DeclaredType, declaringSyntax: null);
 
                 case DeclaredSymbol declaredSymbol when IsCycleFree(declaredSymbol):
                     // the syntax node is referencing a declared symbol
@@ -1581,11 +1597,14 @@ namespace Bicep.Core.TypeSystem
                 return null;
             }
 
-            var arguments = parentFunction.Arguments.ToImmutableArray();
+            var arguments = parentFunction.Arguments;
             var argIndex = arguments.IndexOf(syntax);
             var declaredType = functionSymbol.GetDeclaredArgumentType(
                 argIndex,
-                getAssignedArgumentType: i => typeManager.GetTypeInfo(parentFunction.Arguments[i]));
+                getAssignedArgumentType: i => typeManager.GetTypeInfo(parentFunction.Arguments[i]),
+                getAttachedType: () => binder.GetParent(parent) is DecoratorSyntax decorator && binder.GetParent(decorator) is DecorableSyntax decorated
+                    ? GetDeclaredType(decorated) ?? ErrorType.Empty()
+                    : throw new InvalidOperationException("Cannot get attached type of function not used as decorator."));
 
             return new DeclaredTypeAssignment(declaredType, declaringSyntax: null);
         }
@@ -1822,9 +1841,11 @@ namespace Bicep.Core.TypeSystem
                     // the object is an item in an array
                     // use the item's type and propagate flags
                     return TryCreateAssignment(ResolveDiscriminatedObjects(configType.Type, syntax), syntax, extensionAssignment.Flags);
+
                 case FunctionArgumentSyntax:
                 case OutputDeclarationSyntax parentOutput when syntax == parentOutput.Value:
                 case VariableDeclarationSyntax parentVariable when syntax == parentVariable.Value:
+                case UsingWithClauseSyntax usingWith when syntax == usingWith.Config:
                     if (GetNonNullableTypeAssignment(parent) is not { } parentAssignment)
                     {
                         return null;
@@ -1850,7 +1871,8 @@ namespace Bicep.Core.TypeSystem
                     if (GetDeclaredTypeAssignment(parent) is not { } parameterAssignmentTypeAssignment)
                     {
                         return null;
-                    };
+                    }
+                    ;
 
                     return TryCreateAssignment(parameterAssignmentTypeAssignment.Reference.Type, syntax);
 
@@ -1996,7 +2018,7 @@ namespace Bicep.Core.TypeSystem
             return null;
         }
 
-        private static TypeSymbol? ResolveDiscriminatedObjects(TypeSymbol type, ObjectSyntax syntax)
+        private static TypeSymbol ResolveDiscriminatedObjects(TypeSymbol type, ObjectSyntax syntax)
         {
             if (type is not DiscriminatedObjectType discriminated)
             {
@@ -2038,7 +2060,7 @@ namespace Bicep.Core.TypeSystem
             var matchingObjectType = discriminated.UnionMembersByKey.TryGetValue(StringUtils.EscapeBicepString(discriminatorValue));
 
             // return the match if we have it
-            return matchingObjectType?.Type;
+            return matchingObjectType?.Type ?? type;
         }
 
         // references to symbols can be involved in cycles

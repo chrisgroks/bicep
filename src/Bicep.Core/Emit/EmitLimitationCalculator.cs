@@ -58,12 +58,14 @@ namespace Bicep.Core.Emit
             BlockSecureOutputsWithLocalDeploy(model, diagnostics);
             BlockSecureOutputAccessOnIndirectReference(model, diagnostics);
             BlockExtendsWithoutFeatureFlagEnabled(model, diagnostics);
+            BlockExplicitDependenciesInOrOnInlinedExistingResources(model, resourceTypeResolver, diagnostics);
+            ValidateUsingWithClauseMatchesExperimentalFeatureEnablement(model, diagnostics);
 
             var paramAssignmentEvaluator = new ParameterAssignmentEvaluator(model);
-            var paramAssignments = CalculateParameterAssignments(model, paramAssignmentEvaluator, diagnostics);
+            var (paramAssignments, usingConfig, externalInputDefinitions) = CalculateParameterAssignments(model, paramAssignmentEvaluator, diagnostics);
             var extConfigAssignments = CalculateExtensionConfigAssignments(model, paramAssignmentEvaluator, diagnostics);
 
-            return new(diagnostics.GetDiagnostics(), moduleScopeData, resourceScopeData, paramAssignments, extConfigAssignments);
+            return new(diagnostics.GetDiagnostics(), paramAssignments, extConfigAssignments, usingConfig, externalInputDefinitions);
         }
 
         private static void DetectDuplicateNames(SemanticModel semanticModel, IDiagnosticWriter diagnosticWriter, ImmutableDictionary<DeclaredResourceMetadata, ScopeHelper.ScopeData> resourceScopeData, ImmutableDictionary<ModuleSymbol, ScopeHelper.ScopeData> moduleScopeData)
@@ -433,18 +435,10 @@ namespace Bicep.Core.Emit
                     // unexpected type is assigned as the value of the "params" property
                     // we can't emit that directly because the parameters have to be converted into an object whose property values are objects with a "value" property
                     // ideally we would add a runtime function to take care of the conversion in these cases, but it doesn't exist yet
-                    diagnosticWriter.Write(DiagnosticBuilder.ForPosition(paramsValue).ModulePropertyRequiresObjectLiteral(LanguageConstants.ModuleParamsPropertyName));
+                    diagnosticWriter.Write(DiagnosticBuilder.ForPosition(paramsValue).PropertyRequiresObjectLiteral(LanguageConstants.ModuleParamsPropertyName));
                 }
 
-                if (semanticModel.Features.ModuleExtensionConfigsEnabled)
-                {
-                    var extensionConfigsValue = body.TryGetPropertyByName(LanguageConstants.ModuleExtensionConfigsPropertyName)?.Value;
-
-                    if (extensionConfigsValue is not (null or ObjectSyntax or SkippedTriviaSyntax))
-                    {
-                        diagnosticWriter.Write(DiagnosticBuilder.ForPosition(extensionConfigsValue).ModulePropertyRequiresObjectLiteral(LanguageConstants.ModuleExtensionConfigsPropertyName));
-                    }
-                }
+                ModuleExtensionConfigsLimitations.Validate(body, semanticModel, diagnosticWriter);
             }
         }
 
@@ -604,15 +598,14 @@ namespace Bicep.Core.Emit
                 .WhereNotNull()
                 .Select(forbiddenSafeAccessMarker => DiagnosticBuilder.ForPosition(forbiddenSafeAccessMarker).SafeDereferenceNotPermittedOnResourceCollections()));
 
-        private static ImmutableDictionary<ParameterAssignmentSymbol, ParameterAssignmentValue> CalculateParameterAssignments(
+        private static (ImmutableDictionary<ParameterAssignmentSymbol, ParameterAssignmentValue> paramAssignments, ParameterAssignmentValue? usingConfig, ImmutableArray<ExternalInputDefinition>? externalInputDefinitions) CalculateParameterAssignments(
             SemanticModel model,
             ParameterAssignmentEvaluator evaluator,
             IDiagnosticWriter diagnostics)
         {
-            if (model.Root.ParameterAssignments.IsEmpty ||
-                model.HasParsingErrors())
+            if (model.HasParsingErrors())
             {
-                return ImmutableDictionary<ParameterAssignmentSymbol, ParameterAssignmentValue>.Empty;
+                return ([], null, null);
             }
 
             var referencesInValues = model.Binder.Bindings.Values.OfType<DeclaredSymbol>().Distinct()
@@ -696,7 +689,14 @@ namespace Bicep.Core.Emit
                 }
             }
 
-            return generated.ToImmutableDictionary();
+            var externalInputDefinitions = evaluator.TryGetExternalInputDefinitions();
+            ParameterAssignmentValue? usingConfig = null;
+            if (evaluator.EvaluateUsingConfig(model.Root) is { } usingConfigResult)
+            {
+                usingConfig = new(usingConfigResult.Value, usingConfigResult.Expression, usingConfigResult.KeyVaultReference);
+            }
+
+            return (generated.ToImmutableDictionary(), usingConfig, externalInputDefinitions);
         }
 
         private static ImmutableDictionary<ExtensionConfigAssignmentSymbol, ImmutableDictionary<string, ExtensionConfigAssignmentValue>> CalculateExtensionConfigAssignments(
@@ -706,7 +706,7 @@ namespace Bicep.Core.Emit
         {
             if (model.Root.ExtensionConfigAssignments.IsEmpty)
             {
-                return ImmutableDictionary<ExtensionConfigAssignmentSymbol, ImmutableDictionary<string, ExtensionConfigAssignmentValue>>.Empty;
+                return [];
             }
 
             var generated = ImmutableDictionary.CreateBuilder<ExtensionConfigAssignmentSymbol, ImmutableDictionary<string, ExtensionConfigAssignmentValue>>();
@@ -797,6 +797,22 @@ namespace Bicep.Core.Emit
                 if (!model.Features.ExtendableParamFilesEnabled)
                 {
                     diagnostics.Write(extendsDeclaration, x => x.ExtendsNotSupported());
+                }
+            }
+        }
+
+        private static void ValidateUsingWithClauseMatchesExperimentalFeatureEnablement(SemanticModel model, IDiagnosticWriter diagnostics)
+        {
+            foreach (var syntax in model.SourceFile.ProgramSyntax.Declarations.OfType<UsingDeclarationSyntax>())
+            {
+                if (syntax.WithClause is not SkippedTriviaSyntax && !model.Features.DeployCommandsEnabled)
+                {
+                    diagnostics.Write(syntax.WithClause, x => x.UsingWithClauseRequiresExperimentalFeature());
+                }
+
+                if (syntax.WithClause is SkippedTriviaSyntax && model.Features.DeployCommandsEnabled)
+                {
+                    diagnostics.Write(syntax, x => x.UsingWithClauseRequiredIfExperimentalFeatureEnabled());
                 }
             }
         }
@@ -945,7 +961,7 @@ namespace Bicep.Core.Emit
                     TypeHelper.IsOrContainsSecureType(model.GetTypeInfo(accessExpr)))
                 {
                     if (model.GetSymbolInfo(baseAccessExpr.BaseExpression) is ModuleSymbol ||
-                        (baseAccessExpr.BaseExpression is ArrayAccessSyntax grandBaseArrayAccess &&
+                        (SyntaxHelper.UnwrapNonNullAssertion(baseAccessExpr.BaseExpression) is ArrayAccessSyntax grandBaseArrayAccess &&
                             model.GetSymbolInfo(grandBaseArrayAccess.BaseExpression) is ModuleSymbol greatGrandBaseModule &&
                             greatGrandBaseModule.IsCollection))
                     {
@@ -956,6 +972,49 @@ namespace Bicep.Core.Emit
 
                     diagnostics.Write(DiagnosticBuilder.ForPosition(accessExpr.IndexExpression)
                         .SecureOutputsOnlyAllowedOnDirectModuleReference());
+                }
+            }
+        }
+
+        private static void BlockExplicitDependenciesInOrOnInlinedExistingResources(
+            SemanticModel model,
+            ResourceTypeResolver resolver,
+            IDiagnosticWriter diagnostics)
+        {
+            static IEnumerable<string> GetRuntimeIdentifierProperties(ResourceTypeResolver resolver, ResourceSymbol resource)
+                => resolver.TryGetBodyObjectType(resource)?.Properties
+                    .Where(kvp => AzResourceTypeProvider.UniqueIdentifierProperties.Contains(kvp.Key) &&
+                        !kvp.Value.Flags.HasFlag(TypePropertyFlags.ReadableAtDeployTime))
+                    .Select(kvp => kvp.Key) ?? [];
+
+            foreach (var resourceDeclaration in model.Root.ResourceDeclarations)
+            {
+                if (resourceDeclaration.TryGetBodyProperty(LanguageConstants.ResourceDependsOnPropertyName)
+                    is { } explicitDependencies)
+                {
+                    if (model.SymbolsToInline.ExistingResourcesToInline.Contains(resourceDeclaration))
+                    {
+                        // inlined resources can't have explicit dependencies
+                        diagnostics.Write(DiagnosticBuilder.ForPosition(explicitDependencies)
+                            .InlinedResourcesCannotHaveExplicitDependencies(
+                                resourceDeclaration.Name,
+                                GetRuntimeIdentifierProperties(resolver, resourceDeclaration)));
+                    }
+                    else
+                    {
+                        foreach (var (inlinedResource, explicitDependency) in SymbolicReferenceCollector
+                            .CollectSymbolsReferenced(model.Binder, explicitDependencies.Value)
+                            .SelectMany(kvp => kvp.Key is ResourceSymbol r && model.SymbolsToInline.ExistingResourcesToInline.Contains(r)
+                                ? kvp.Value.Select(syntax => (r, syntax))
+                                : []))
+                        {
+                            diagnostics.Write(DiagnosticBuilder.ForPosition(explicitDependency)
+                                .CannotExplicitlyDependOnInlinedResource(
+                                    resourceDeclaration.Name,
+                                    inlinedResource.Name,
+                                    GetRuntimeIdentifierProperties(resolver, inlinedResource)));
+                        }
+                    }
                 }
             }
         }

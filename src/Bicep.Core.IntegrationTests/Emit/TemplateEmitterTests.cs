@@ -4,6 +4,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using Bicep.Core.Emit;
+using Bicep.Core.Extensions;
 using Bicep.Core.FileSystem;
 using Bicep.Core.Parsing;
 using Bicep.Core.Samples;
@@ -54,7 +55,7 @@ namespace Bicep.Core.IntegrationTests.Emit
                 .Build()
                 .GetCompiler();
 
-            return await compiler.CreateCompilation(bicepFileUri);
+            return await compiler.CreateCompilation(bicepFileUri.ToIOUri());
         }
 
         private async Task<Compilation> GetCompilation(BaselineData_Bicepparam baseline, FeatureProviderOverrides? features = null)
@@ -71,7 +72,7 @@ namespace Bicep.Core.IntegrationTests.Emit
                 .Build()
                 .GetCompiler();
 
-            return await compiler.CreateCompilation(baseline.GetData(TestContext).Parameters.OutputFileUri);
+            return await compiler.CreateCompilation(baseline.GetData(TestContext).Parameters.OutputFileUri.ToIOUri());
         }
 
         [DataTestMethod]
@@ -137,7 +138,7 @@ namespace Bicep.Core.IntegrationTests.Emit
 
             var features = new FeatureProviderOverrides(TestContext, SourceMappingEnabled: true);
             var compiler = ServiceBuilder.Create(s => s.WithFeatureOverrides(features)).GetCompiler();
-            var bicepUri = PathHelper.FilePathToFileUrl(bicepFile.OutputFilePath);
+            var bicepUri = PathHelper.FilePathToFileUrl(bicepFile.OutputFilePath).ToIOUri();
 
             var compilation = await compiler.CreateCompilation(bicepUri);
             var emitter = new TemplateEmitter(compilation.GetEntrypointSemanticModel());
@@ -291,6 +292,31 @@ this
 
             var expected = string.Join(newlineSequence, ["this", "  is", "    a", "      multiline", "        string", ""]);
             template.Should().HaveValueAtPath("$.variables.multiline", expected);
+        }
+
+        [TestMethod]
+        [DataRow("\n")]
+        [DataRow("\r\n")]
+        public void Multiline_interpolated_strings_should_parse_correctly(string newlineSequence)
+        {
+            var inputFile = @"
+var name = 'World'
+var multiline = $'''
+Hello ${name}!
+'''
+
+var multiline2 = $$'''
+Hello $${name}!
+'''
+";
+
+            var (template, _, _) = CompilationHelper.Compile(StringUtils.ReplaceNewlines(inputFile, newlineSequence));
+
+            var expected1 = string.Join(newlineSequence, ["[format('Hello {0}!", "', variables('name'))]"]);
+            template.Should().HaveValueAtPath("$.variables.multiline", expected1);
+
+            var expected2 = string.Join(newlineSequence, ["[format('Hello {0}!", "', variables('name'))]"]);
+            template.Should().HaveValueAtPath("$.variables.multiline2", expected2);
         }
 
         [TestMethod]

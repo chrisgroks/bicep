@@ -44,17 +44,17 @@ namespace Bicep.Core.Features
 
         public bool WaitAndRetryEnabled => configuration.ExperimentalFeaturesEnabled.WaitAndRetry;
 
-        public bool OnlyIfNotExistsEnabled => configuration.ExperimentalFeaturesEnabled.OnlyIfNotExists;
-
         public bool LocalDeployEnabled => configuration.ExperimentalFeaturesEnabled.LocalDeploy;
 
         public bool ResourceInfoCodegenEnabled => this.configuration.ExperimentalFeaturesEnabled.ResourceInfoCodegen;
 
         public bool ModuleExtensionConfigsEnabled => configuration.ExperimentalFeaturesEnabled.ModuleExtensionConfigs;
 
-        public bool DesiredStateConfigurationEnabled => configuration.ExperimentalFeaturesEnabled.DesiredStateConfiguration;
+        public bool UserDefinedConstraintsEnabled => configuration.ExperimentalFeaturesEnabled.UserDefinedConstraints;
 
-        public bool ModuleIdentityEnabled => configuration.ExperimentalFeaturesEnabled.ModuleIdentity;
+        public bool DeployCommandsEnabled => configuration.ExperimentalFeaturesEnabled.DeployCommands;
+
+        public bool ThisNamespaceEnabled => configuration.ExperimentalFeaturesEnabled.ThisNamespace;
 
         private static bool ReadBooleanEnvVar(string envVar, bool defaultValue)
             => bool.TryParse(Environment.GetEnvironmentVariable(envVar), out var value) ? value : defaultValue;
@@ -74,6 +74,6 @@ namespace Bicep.Core.Features
                 : customPath);
 
         private IDirectoryHandle GetCacheRootDirectoryFromLocalPath(string localPath) =>
-            this.fileExplorer.GetDirectory(IOUri.FromLocalFilePath(localPath));
+            this.fileExplorer.GetDirectory(IOUri.FromFilePath(localPath));
     }
 }

@@ -36,7 +36,13 @@ namespace Bicep.Core.TypeSystem.Providers.Extensibility
                 bodyType = new ObjectType(bodyType.Name, bodyType.ValidationFlags, objectType.Properties.Values, objectType.AdditionalProperties, resourceFunctions);
             }
 
-            return new ResourceTypeComponents(resourceTypeReference, ToResourceScope(resourceType.ScopeType), ToResourceScope(resourceType.ReadOnlyScopes), ToResourceFlags(resourceType.Flags), bodyType);
+            var (readableScopes, writableScopes) = GetScopeInfo(resourceType);
+            var readOnlyScopes = readableScopes & ~writableScopes;
+
+            // Temporary fix for https://github.com/Azure/bicep/issues/18158
+            var validParentScopes = readableScopes | writableScopes;
+
+            return new ResourceTypeComponents(resourceTypeReference, validParentScopes, readOnlyScopes, ToResourceFlags(resourceType), bodyType);
         }
 
         public TypeSymbol GetConfigurationType(Azure.Bicep.Types.Concrete.TypeBase configurationType)
@@ -228,20 +234,50 @@ namespace Bicep.Core.TypeSystem.Providers.Extensibility
             return flags;
         }
 
-        private static ResourceFlags ToResourceFlags(Azure.Bicep.Types.Concrete.ResourceFlags input)
+        private static ResourceFlags ToResourceFlags(Azure.Bicep.Types.Concrete.ResourceType input)
         {
             var output = ResourceFlags.None;
-            if (input.HasFlag(Azure.Bicep.Types.Concrete.ResourceFlags.ReadOnly))
+            var (readableScopes, writableScopes) = GetScopeInfo(input);
+
+            // Resource is ReadOnly if there are no writable scopes but has readable scopes
+            if (writableScopes == ResourceScope.None && readableScopes != ResourceScope.None)
             {
                 output |= ResourceFlags.ReadOnly;
+            }
+
+            // Resource is WriteOnly if there are no readable scopes but has writable scopes
+            // This is specifically for extensions which cannot be referenced as existing
+            if (readableScopes == ResourceScope.None && writableScopes != ResourceScope.None)
+            {
+                output |= ResourceFlags.WriteOnly;
             }
 
             return output;
         }
 
+        private static (ResourceScope readableScopes, ResourceScope writableScopes) GetScopeInfo(Azure.Bicep.Types.Concrete.ResourceType resourceType)
+        {
+            var readableScopes = ToResourceScope(resourceType.ReadableScopes);
+            var writableScopes = ToResourceScope(resourceType.WritableScopes);
+
+            if (readableScopes == ResourceScope.None && writableScopes == ResourceScope.None)
+            {
+                readableScopes = ToResourceScope(Azure.Bicep.Types.Concrete.ScopeType.All);
+                writableScopes = ToResourceScope(Azure.Bicep.Types.Concrete.ScopeType.All);
+            }
+
+            return (readableScopes, writableScopes);
+        }
+
         private static ResourceScope ToResourceScope(Azure.Bicep.Types.Concrete.ScopeType input)
         {
-            if (input == Azure.Bicep.Types.Concrete.ScopeType.Unknown)
+            if (input == Azure.Bicep.Types.Concrete.ScopeType.None)
+            {
+                // ScopeType.None means no valid scopes
+                return ResourceScope.None;
+            }
+
+            if (input == Azure.Bicep.Types.Concrete.ScopeType.All)
             {
                 return ResourceScope.Tenant | ResourceScope.ManagementGroup | ResourceScope.Subscription | ResourceScope.ResourceGroup | ResourceScope.Resource | ResourceScope.Local;
             }
@@ -255,8 +291,5 @@ namespace Bicep.Core.TypeSystem.Providers.Extensibility
 
             return output;
         }
-
-        private static ResourceScope ToResourceScope(Azure.Bicep.Types.Concrete.ScopeType? input)
-            => input.HasValue ? ToResourceScope(input.Value) : ResourceScope.None;
     }
 }

@@ -3,6 +3,7 @@
 
 using System.Diagnostics.CodeAnalysis;
 using Bicep.Core.Diagnostics;
+using Bicep.Core.UnitTests;
 using Bicep.Core.UnitTests.Assertions;
 using Bicep.Core.UnitTests.Utils;
 using FluentAssertions;
@@ -241,7 +242,7 @@ invalid file
     }
 
     [TestMethod]
-    public void ExternalInput_assigned_to_parameter_without_config()
+    public void ExternalInput_without_config_compiles_successfully()
     {
         var result = CompilationHelper.CompileParams(
 ("parameters.bicepparam", @"
@@ -262,18 +263,30 @@ param foo = externalInput('my.param.provider')
     }
 
     [TestMethod]
-    public void ExternalInput_assigned_to_parameter_with_config()
+    public void ExternalInput_with_config_compiles_successfully()
     {
         var result = CompilationHelper.CompileParams(
 ("parameters.bicepparam", @"
 using none
 param foo = externalInput('sys.cli', 'foo')
+param bar = externalInput('my.param.provider', {
+    key: 'value'
+    key2: 42
+})
+param baz = externalInput('my.provider', 42)
+param qux = externalInput('is.this.a.provider', false)
 "));
 
         result.Should().NotHaveAnyDiagnostics();
         var parameters = TemplateHelper.ConvertAndAssertParameters(result.Parameters);
         parameters["foo"].Value.Should().BeNull();
         parameters["foo"].Expression.Should().DeepEqual("""[externalInputs('sys_cli_0')]""");
+        parameters["bar"].Value.Should().BeNull();
+        parameters["bar"].Expression.Should().DeepEqual("""[externalInputs('my_param_provider_1')]""");
+        parameters["baz"].Value.Should().BeNull();
+        parameters["baz"].Expression.Should().DeepEqual("""[externalInputs('my_provider_2')]""");
+        parameters["qux"].Value.Should().BeNull();
+        parameters["qux"].Expression.Should().DeepEqual("""[externalInputs('is_this_a_provider_3')]""");
 
         var externalInputs = TemplateHelper.ConvertAndAssertExternalInputs(result.Parameters);
         externalInputs["sys_cli_0"].Should().DeepEqual(new JObject
@@ -281,10 +294,29 @@ param foo = externalInput('sys.cli', 'foo')
             ["kind"] = "sys.cli",
             ["config"] = "foo",
         });
+        externalInputs["my_param_provider_1"].Should().DeepEqual(new JObject
+        {
+            ["kind"] = "my.param.provider",
+            ["config"] = new JObject
+            {
+                ["key"] = "value",
+                ["key2"] = 42,
+            },
+        });
+        externalInputs["my_provider_2"].Should().DeepEqual(new JObject
+        {
+            ["kind"] = "my.provider",
+            ["config"] = 42,
+        });
+        externalInputs["is_this_a_provider_3"].Should().DeepEqual(new JObject
+        {
+            ["kind"] = "is.this.a.provider",
+            ["config"] = false,
+        });
     }
 
     [TestMethod]
-    public void ExternalInput_parameter_with_variable_references()
+    public void ExternalInput_parameter_with_variable_references_compiles_successfully()
     {
         var result = CompilationHelper.CompileParams(
 ("parameters.bicepparam", @"
@@ -313,24 +345,7 @@ param foo3 = foo2
     }
 
     [TestMethod]
-    public void No_parameters_containing_external_input_should_not_generate_external_input_definitions()
-    {
-        var result = CompilationHelper.CompileParams(
-("parameters.bicepparam", @"
-using none
-param foo = 'foo'
-var baz = externalInput('sys.cli', 'baz')
-"));
-
-        result.ExcludingLinterDiagnostics().Should().NotHaveAnyDiagnostics();
-        var parameters = TemplateHelper.ConvertAndAssertParameters(result.Parameters);
-        parameters["foo"].Value.Should().DeepEqual("foo");
-        parameters["foo"].Expression.Should().BeNull();
-        result.Parameters.Should().NotHaveValueAtPath("$.externalInputDefinitions");
-    }
-
-    [TestMethod]
-    public void ExternalInput_parameter_with_param_references()
+    public void ExternalInput_parameter_with_param_references_compiles_successfully()
     {
         var result = CompilationHelper.CompileParams(
 ("parameters.bicepparam", @"
@@ -360,7 +375,7 @@ param foo3 = foo2
     }
 
     [TestMethod]
-    public void ExternalInput_parameter_with_cyclic_references()
+    public void ExternalInput_parameter_with_cyclic_references_returns_errors()
     {
         var result = CompilationHelper.CompileParams(
 ("parameters.bicepparam", @"
@@ -417,6 +432,42 @@ param foo = {
         externalInputs["my_param_provider_0"].Should().DeepEqual(new JObject
         {
             ["kind"] = "my.param.provider",
+        });
+    }
+
+    [TestMethod]
+    public void ExternalInput_alternative_functions_also_generate_external_inputs()
+    {
+        var services = new ServiceBuilder().WithFeatureOverrides(new(TestContext, DeployCommandsEnabled: true));
+        var result = CompilationHelper.CompileParams(
+            services,
+            ("parameters.bicepparam", """
+                using 'main.bicep' with {
+                  mode: 'deployment'
+                  scope: '/subscriptions/foo/resourceGroups/bar'
+                }
+                var foo = readCliArg('foo')
+                var foo2 = '${foo}-${readEnvVar('foo2')}'
+                param foo3 = foo2
+                """), ("main.bicep", """
+                param foo3 string
+                """));
+
+        result.Should().NotHaveAnyDiagnostics();
+        var parameters = TemplateHelper.ConvertAndAssertParameters(result.Parameters);
+        parameters["foo3"].Value.Should().BeNull();
+        parameters["foo3"].Expression.Should().DeepEqual("""[format('{0}-{1}', externalInputs('sys_cliArg_0'), externalInputs('sys_envVar_1'))]""");
+
+        var externalInputs = TemplateHelper.ConvertAndAssertExternalInputs(result.Parameters);
+        externalInputs["sys_cliArg_0"].Should().DeepEqual(new JObject
+        {
+            ["kind"] = "sys.cliArg",
+            ["config"] = "foo",
+        });
+        externalInputs["sys_envVar_1"].Should().DeepEqual(new JObject
+        {
+            ["kind"] = "sys.envVar",
+            ["config"] = "foo2",
         });
     }
 }

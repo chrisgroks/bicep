@@ -20,6 +20,7 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
+using Spectre.Console;
 using TestEnvironment = Bicep.Core.UnitTests.Utils.TestEnvironment;
 
 namespace Bicep.Cli.IntegrationTests
@@ -32,8 +33,7 @@ namespace Bicep.Cli.IntegrationTests
                 {
                     services
                         .AddSingleton(clientFactory)
-                        .AddSingleton(templateSpecRepositoryFactory)
-                        .AddRegistryCatalogServices();
+                        .AddSingleton(templateSpecRepositoryFactory);
 
                     IServiceCollectionExtensions.AddMockHttpClientIfNotNull(services, moduleMetadataClient);
                 }
@@ -79,27 +79,7 @@ namespace Bicep.Cli.IntegrationTests
         }
 
         protected static Task<CliResult> Bicep(InvocationSettings settings, Action<IServiceCollection>? registerAction, CancellationToken cancellationToken, params string?[] args /*null args are ignored*/)
-            => TextWriterHelper.InvokeWriterAction((@out, err)
-                => new Program(
-                    new(Output: @out, Error: err),
-                    services =>
-                    {
-                        if (settings.FeatureOverrides is { })
-                        {
-                            services.WithFeatureOverrides(settings.FeatureOverrides);
-                        }
-
-                        IServiceCollectionExtensions.AddMockHttpClientIfNotNull(services, settings.ModuleMetadataClient);
-
-                        services
-                            .AddSingletonIfNotNull(settings.Environment ?? BicepTestConstants.EmptyEnvironment)
-                            .AddSingletonIfNotNull(settings.ClientFactory)
-                            .AddSingletonIfNotNull(settings.TemplateSpecRepositoryFactory);
-
-                        registerAction?.Invoke(services);
-                    }
-                   )
-                   .RunAsync(args.ToArrayExcludingNull(), cancellationToken));
+            => BicepInternal(settings, registerAction, null, cancellationToken, args);
 
         protected static Task<CliResult> Bicep(params string[] args) => Bicep(InvocationSettings.Default, args);
 
@@ -112,6 +92,10 @@ namespace Bicep.Cli.IntegrationTests
         protected static Task<CliResult> Bicep(InvocationSettings settings, params string?[] args /*null args are ignored*/)
             => Bicep(settings, null, CancellationToken.None, args);
 
+        protected static Task<CliResult> Bicep(
+            Func<TextWriter, TextWriter, IOContext> ioContextFactory, params string[] args)
+            => BicepInternal(InvocationSettings.Default, null, ioContextFactory, CancellationToken.None, args);
+
         protected static void AssertNoErrors(string error)
         {
             foreach (var line in error.Split(["\r\n", "\n"], StringSplitOptions.RemoveEmptyEntries))
@@ -122,7 +106,7 @@ namespace Bicep.Cli.IntegrationTests
 
         protected static async Task<IEnumerable<string>> GetAllDiagnostics(string bicepFilePath, IContainerRegistryClientFactory clientFactory, ITemplateSpecRepositoryFactory templateSpecRepositoryFactory, IPublicModuleIndexHttpClient? moduleMetadataClient = null)
         {
-            var compilation = await CreateCompiler(clientFactory, templateSpecRepositoryFactory, moduleMetadataClient).CreateCompilation(PathHelper.FilePathToFileUrl(bicepFilePath));
+            var compilation = await CreateCompiler(clientFactory, templateSpecRepositoryFactory, moduleMetadataClient).CreateCompilation(PathHelper.FilePathToFileUrl(bicepFilePath).ToIOUri());
 
             var output = new List<string>();
             foreach (var (bicepFile, diagnostics) in compilation.GetAllDiagnosticsByBicepFile())
@@ -142,7 +126,7 @@ namespace Bicep.Cli.IntegrationTests
         {
             var compiler = serviceBuilder.Build().GetCompiler();
 
-            var compilation = await compiler.CreateCompilation(PathHelper.FilePathToFileUrl(paramFilePath));
+            var compilation = await compiler.CreateCompilation(PathHelper.FilePathToFileUrl(paramFilePath).ToIOUri());
 
             var semanticModel = compilation.GetEntrypointSemanticModel();
 
@@ -181,5 +165,43 @@ namespace Bicep.Cli.IntegrationTests
             ("intEnvVariableName", "100"),
             ("boolEnvironmentVariable", "true")
         );
+
+        private static Task<CliResult> BicepInternal(
+            InvocationSettings settings,
+            Action<IServiceCollection>? registerAction,
+            Func<TextWriter, TextWriter, IOContext>? ioContextFactory,
+            CancellationToken cancellationToken, params string?[] args /*null args are ignored*/)
+            => TextWriterHelper.InvokeWriterAction((@out, err) =>
+            {
+                var ioContext = ioContextFactory?.Invoke(@out, err) ?? new IOContext(
+                    Input: new(new StringReader(string.Empty), false),
+                    Output: new(@out, false),
+                    Error: new(err, false));
+                return new Program(ioContext,
+                    services =>
+                    {
+                        if (settings.FeatureOverrides is { })
+                        {
+                            services.WithFeatureOverrides(settings.FeatureOverrides);
+                        }
+
+                        IServiceCollectionExtensions.AddMockHttpClientIfNotNull(services, settings.ModuleMetadataClient);
+
+                        services
+                            .AddSingletonIfNotNull(settings.Environment ?? BicepTestConstants.EmptyEnvironment)
+                            .AddSingletonIfNotNull(settings.ClientFactory)
+                            .AddSingletonIfNotNull(settings.TemplateSpecRepositoryFactory)
+                            .AddSingleton(AnsiConsole.Create(new()
+                            {
+                                Ansi = AnsiSupport.Yes,
+                                ColorSystem = ColorSystemSupport.Standard,
+                                Interactive = InteractionSupport.No,
+                                Out = new AnsiConsoleOutput(@out),
+                            }));
+
+                        registerAction?.Invoke(services);
+                    }
+                ).RunAsync(args.ToArrayExcludingNull(), cancellationToken);
+            });
     }
 }

@@ -8,7 +8,6 @@ using Azure.Deployments.Templates.Engines;
 using Bicep.Core.Configuration;
 using Bicep.Core.Extensions;
 using Bicep.Core.Features;
-using Bicep.Core.FileSystem;
 using Bicep.Core.Parsing;
 using Bicep.Core.Text;
 using Bicep.IO.Abstraction;
@@ -88,7 +87,7 @@ namespace Bicep.Core.SourceGraph
 
         public BicepParamFile CreateBicepParamFile(IOUri fileUri, string fileContents)
         {
-            var parser = new ParamsParser(fileContents, this.featureProviderFactory.GetFeatureProvider(fileUri.ToUri()));
+            var parser = new ParamsParser(fileContents, this.featureProviderFactory.GetFeatureProvider(fileUri));
             var lineStarts = TextCoordinateConverter.GetLineStarts(fileContents);
             var fileHandle = this.CreateFileHandle(fileUri);
 
@@ -110,6 +109,14 @@ namespace Bicep.Core.SourceGraph
             var lineStarts = TextCoordinateConverter.GetLineStarts(fileContents);
 
             return new(fileHandle, lineStarts, parser.Program(), this.configurationManager, this.featureProviderFactory, this.auxiliaryFileCache, parser.LexingErrorLookup, parser.ParsingErrorLookup);
+        }
+
+        public BicepReplFile CreateBicepReplFile(IFileHandle fileHandle, IDirectoryHandle auxiliaryDirectoryHandle, string fileContents)
+        {
+            var parser = new ReplParser(fileContents);
+            var lineStarts = TextCoordinateConverter.GetLineStarts(fileContents);
+
+            return new(fileHandle, auxiliaryDirectoryHandle, lineStarts, parser.Program(), this.configurationManager, this.featureProviderFactory, this.auxiliaryFileCache, parser.LexingErrorLookup, parser.ParsingErrorLookup);
         }
 
         public ArmTemplateFile CreateArmTemplateFile(IOUri fileUri, string fileContents) =>

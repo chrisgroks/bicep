@@ -2,17 +2,41 @@
 
 param boolParam1 bool
 param strParam1 string
+param objParam1 object
+//@[16:022) [use-user-defined-types (Warning)] Use user-defined types instead of 'object' or 'array'. (bicep core linter https://aka.ms/bicep/linter-diagnostics#use-user-defined-types) |object|
+param invalidParamAssignment1 string = k8s.config.namespace
+//@[06:029) [no-unused-params (Warning)] Parameter "invalidParamAssignment1" is declared but never used. (bicep core linter https://aka.ms/bicep/linter-diagnostics#no-unused-params) |invalidParamAssignment1|
+//@[39:042) [BCP418 (Error)] Extensions cannot be referenced here. Extensions can only be referenced by module extension configurations. (bicep https://aka.ms/bicep/core-diagnostics#BCP418) |k8s|
 
 // END: Parameters
 
-// BEGIN: Valid Extension declarations
+// BEGIN: Valid extension declarations
 
 extension az
 extension kubernetes as k8s
+extension 'br:mcr.microsoft.com/bicep/extensions/hasoptionalconfig/v1:1.2.3' as extWithOptionalConfig1
 
-//extension 'br:mcr.microsoft.com/bicep/extensions/microsoftgraph/v1.0:0.1.8-preview' as graph
+// END: Valid extension declarations
 
-// END: Valid Extension declarations
+// BEGIN: Invalid extension declarations
+
+extension 'br:mcr.microsoft.com/bicep/extensions/hasoptionalconfig/v1:1.2.3' with {
+  optionalString: testResource1.properties.ns // no reference calls, use module extension configs instead.
+//@[18:042) [BCP444 (Error)] This expression is being used as a default value for an extension configuration property, which requires a value that can be calculated at the start of the deployment. Properties of testResource1 which can be calculated at the start include "apiVersion", "id", "name", "type". (bicep https://aka.ms/bicep/core-diagnostics#BCP444) |testResource1.properties|
+} as invalidExtDecl1
+
+extension 'br:mcr.microsoft.com/bicep/extensions/hasoptionalconfig/v1:1.2.3' with {
+  optionalString: newGuid()
+//@[18:025) [BCP065 (Error)] Function "newGuid" is not valid at this location. It can only be used as a parameter default value. (bicep https://aka.ms/bicep/core-diagnostics#BCP065) |newGuid|
+} as invalidExtDecl2
+
+extension 'br:mcr.microsoft.com/bicep/extensions/hassecureconfig/v1:1.2.3' with {
+  requiredSecureString: kv1.getSecret('abc')
+//@[24:027) [BCP444 (Error)] This expression is being used as a default value for an extension configuration property, which requires a value that can be calculated at the start of the deployment. Properties of kv1 which can be calculated at the start include "apiVersion", "id", "name", "type". (bicep https://aka.ms/bicep/core-diagnostics#BCP444) |kv1|
+//@[24:044) [BCP180 (Error)] Function "getSecret" is not valid at this location. It can only be used when directly assigning to a module parameter with a secure decorator or a secure extension configuration property. (bicep https://aka.ms/bicep/core-diagnostics#BCP180) |kv1.getSecret('abc')|
+} as invalidExtDecl3
+
+// END: Invalid extension declarations
 
 // BEGIN: Key vaults
 
@@ -54,6 +78,7 @@ resource testResource1 'az:My.Rp/TestType@2020-01-01' = {
 module moduleWithExtsUsingFullInheritance 'child/hasConfigurableExtensionsWithAlias.bicep' = {
   extensionConfigs: {
     k8s: k8s // must use k8s.config
+//@[04:012) [BCP431 (Error)] The value of the "k8s" property must be an object literal or a valid extension config inheritance expression. (bicep https://aka.ms/bicep/core-diagnostics#BCP431) |k8s: k8s|
 //@[09:012) [BCP036 (Error)] The property "k8s" expected a value of type "configuration" but the provided value is of type "k8s". (bicep https://aka.ms/bicep/core-diagnostics#BCP036) |k8s|
   }
 }
@@ -110,6 +135,21 @@ module moduleWithExtsUsingVar1 'child/hasConfigurableExtensionsWithAlias.bicep' 
 module moduleWithExtsUsingVar2 'child/hasConfigurableExtensionsWithAlias.bicep' = {
   extensionConfigs: {
     k8s: k8sConfigDeployTime
+//@[04:028) [BCP431 (Error)] The value of the "k8s" property must be an object literal or a valid extension config inheritance expression. (bicep https://aka.ms/bicep/core-diagnostics#BCP431) |k8s: k8sConfigDeployTime|
+  }
+}
+
+module moduleWithExtsUsingParam1 'child/hasConfigurableExtensionsWithAlias.bicep' = {
+  extensionConfigs: {
+    k8s: objParam1
+//@[04:018) [BCP431 (Error)] The value of the "k8s" property must be an object literal or a valid extension config inheritance expression. (bicep https://aka.ms/bicep/core-diagnostics#BCP431) |k8s: objParam1|
+  }
+}
+
+module moduleWithExtsUsingReference1 'child/hasConfigurableExtensionsWithAlias.bicep' = {
+  extensionConfigs: {
+    k8s: testResource1.properties
+//@[04:033) [BCP431 (Error)] The value of the "k8s" property must be an object literal or a valid extension config inheritance expression. (bicep https://aka.ms/bicep/core-diagnostics#BCP431) |k8s: testResource1.properties|
   }
 }
 
@@ -126,6 +166,24 @@ module moduleInvalidSpread2 'child/hasConfigurableExtensionsWithAlias.bicep' = {
       ...k8sConfigDeployTime
 //@[06:028) [BCP401 (Error)] The spread operator "..." is not permitted in this location. (bicep https://aka.ms/bicep/core-diagnostics#BCP401) |...k8sConfigDeployTime|
     }
+  }
+}
+
+module moduleInvalidInheritanceTernary1 'child/hasConfigurableExtensionsWithAlias.bicep' = {
+  extensionConfigs: {
+    k8s: k8s.config
+    extWithOptionalConfig1: boolParam1 ? extWithOptionalConfig1.config : k8s.config
+//@[28:083) [BCP037 (Error)] The property "context" is not allowed on objects of type "config". No other properties are allowed. (bicep https://aka.ms/bicep/core-diagnostics#BCP037) |boolParam1 ? extWithOptionalConfig1.config : k8s.config|
+//@[28:083) [BCP037 (Error)] The property "kubeConfig" is not allowed on objects of type "config". No other properties are allowed. (bicep https://aka.ms/bicep/core-diagnostics#BCP037) |boolParam1 ? extWithOptionalConfig1.config : k8s.config|
+//@[28:083) [BCP037 (Error)] The property "namespace" is not allowed on objects of type "config". No other properties are allowed. (bicep https://aka.ms/bicep/core-diagnostics#BCP037) |boolParam1 ? extWithOptionalConfig1.config : k8s.config|
+  }
+}
+
+module moduleInvalidInheritanceTernary2 'child/hasConfigurableExtensionsWithAlias.bicep' = {
+  extensionConfigs: {
+    k8s: k8s.config
+    extWithOptionalConfig1: boolParam1 ? extWithOptionalConfig1.config : { optionalString: 'value' } // limitation: cannot mix these currently due to special code gen needed for object literals
+//@[04:100) [BCP431 (Error)] The value of the "extWithOptionalConfig1" property must be an object literal or a valid extension config inheritance expression. (bicep https://aka.ms/bicep/core-diagnostics#BCP431) |extWithOptionalConfig1: boolParam1 ? extWithOptionalConfig1.config : { optionalString: 'value' }|
   }
 }
 

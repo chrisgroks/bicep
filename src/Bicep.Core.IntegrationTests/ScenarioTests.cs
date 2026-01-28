@@ -83,7 +83,7 @@ param l
             ("BCP028", DiagnosticLevel.Error, "Identifier \"l\" is declared multiple times. Remove or rename the duplicates."),
             ("BCP079", DiagnosticLevel.Error, "This expression is referencing its own declaration, which is not allowed."),
             ("BCP028", DiagnosticLevel.Error, "Identifier \"l\" is declared multiple times. Remove or rename the duplicates."),
-            ("BCP279", DiagnosticLevel.Error, "Expected a type at this location. Please specify a valid type expression or one of the following types: \"array\", \"bool\", \"int\", \"object\", \"string\"."),
+            ("BCP279", DiagnosticLevel.Error, "Expected a type at this location. Please specify a valid type expression or one of the following types: \"any\", \"array\", \"bool\", \"int\", \"object\", \"string\"."),
         });
     }
 
@@ -145,8 +145,8 @@ output vnetstate string = vnet.properties.provisioningState
 
         result.ExcludingLinterDiagnostics().Should().NotHaveAnyDiagnostics();
         // ensure we're generating the correct expression with 'subscriptionResourceId', and using the correct name for the module
-        result.Template.Should().HaveValueAtPath("$.outputs['vnetid'].value", "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, 'vnet-rg'), 'Microsoft.Resources/deployments', 'network-module'), '2022-09-01').outputs.vnetId.value]");
-        result.Template.Should().HaveValueAtPath("$.outputs['vnetstate'].value", "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, 'vnet-rg'), 'Microsoft.Resources/deployments', 'network-module'), '2022-09-01').outputs.vnetstate.value]");
+        result.Template.Should().HaveValueAtPath("$.outputs['vnetid'].value", "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, 'vnet-rg'), 'Microsoft.Resources/deployments', 'network-module'), '2025-04-01').outputs.vnetId.value]");
+        result.Template.Should().HaveValueAtPath("$.outputs['vnetstate'].value", "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, 'vnet-rg'), 'Microsoft.Resources/deployments', 'network-module'), '2025-04-01').outputs.vnetstate.value]");
     }
 
     [TestMethod]
@@ -792,7 +792,7 @@ output xx = x
         result.Template.Should().NotHaveValue();
         result.ExcludingLinterDiagnostics().Should().HaveDiagnostics(new[]
         {
-            ("BCP279", DiagnosticLevel.Error, "Expected a type at this location. Please specify a valid type expression or one of the following types: \"array\", \"bool\", \"int\", \"object\", \"string\"."),
+            ("BCP279", DiagnosticLevel.Error, "Expected a type at this location. Please specify a valid type expression or one of the following types: \"any\", \"array\", \"bool\", \"int\", \"object\", \"string\"."),
         });
     }
 
@@ -924,7 +924,7 @@ output test string = 'hello'
 
         result.ExcludingLinterDiagnostics().Should().NotHaveAnyDiagnostics();
         result.Template.Should().HaveValueAtPath("$.outputs['fooName'].value", "[format('{0}-test', parameters('someParam'))]");
-        result.Template.Should().HaveValueAtPath("$.outputs['fooOutput'].value", "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-test', parameters('someParam'))), '2022-09-01').outputs.test.value]");
+        result.Template.Should().HaveValueAtPath("$.outputs['fooOutput'].value", "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-test', parameters('someParam'))), '2025-04-01').outputs.test.value]");
     }
 
     [TestMethod]
@@ -3079,7 +3079,7 @@ resource foo 'Microsoft.Storage/storageAccounts@2021-04-01' = {
 ");
         result.ExcludingLinterDiagnostics().Should().HaveDiagnostics(new[]
         {
-            ("BCP120", DiagnosticLevel.Error, "This expression is being used in an assignment to the \"name\" property of the \"Microsoft.Storage/storageAccounts\" type, which requires a value that can be calculated at the start of the deployment. Properties of existingStg which can be calculated at the start include \"apiVersion\", \"id\", \"type\".")
+            ("BCP120", DiagnosticLevel.Error, "This expression is being used in an assignment to the \"name\" property of the \"Microsoft.Storage/storageAccounts\" type, which requires a value that can be calculated at the start of the deployment. Properties of existingStg which can be calculated at the start include \"apiVersion\", \"type\".")
         });
     }
 
@@ -7449,5 +7449,203 @@ output locations array = flatten(map(databases, database => database.properties.
             """);
 
         result.Should().NotHaveAnyDiagnostics();
+    }
+
+    [TestMethod]
+    public void Test_FilePathMustBeRelative()
+    {
+        var result = CompilationHelper.Compile("""
+            param test string = loadTextContent('C:\\folder\\.ssh\\id_rsa.pub')
+            """);
+
+        result.Should().ContainDiagnostic("BCP051", DiagnosticLevel.Error, "The specified path seems to reference an absolute path. Files must be referenced using relative paths.");
+    }
+
+    [TestMethod]
+    public void Test_Issue18217()
+    {
+        var result = CompilationHelper.CompileParams(
+            ("parameters.bicepparam", """
+            using 'mod.json'
+
+            param foo = 'bar'
+            """),
+            ("mod.json", """
+            {
+              "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+              "contentVersion": "1.0.0.0",
+              "parameters": {
+                "foo": {}
+              },
+              "resources": []
+            }
+            """));
+
+        result.Should().NotHaveAnyDiagnostics();
+    }
+
+    [TestMethod]
+    public void Test_Issue18217_module()
+    {
+        var result = CompilationHelper.Compile(
+            ("main.bicep", """
+            module mod 'mod.json' = {
+              params: {
+                foo: 'bar'
+              }
+            }
+            """),
+            ("mod.json", """
+            {
+              "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+              "contentVersion": "1.0.0.0",
+              "parameters": {
+                "foo": {}
+              },
+              "resources": []
+            }
+            """));
+
+        result.Should().NotHaveAnyDiagnostics();
+    }
+
+    [TestMethod]
+    public void Test_Issue18416()
+    {
+        var result = CompilationHelper.CompileParams(
+            ("foo.json", """
+                {
+                    "default": 5,
+                    "boolLiteral": true
+                }
+                """),
+            ("main.bicep", """
+                type fooType = 5 | 10 | 15
+
+                param foo fooType
+
+                param bar true
+                """),
+            ("parameters.bicepparam", """
+                using 'main.bicep'
+
+                var fooVar = loadJsonContent('foo.json')
+
+                param foo = fooVar.default
+                param bar = fooVar.boolLiteral
+                """));
+
+        result.Should().NotHaveAnyDiagnostics();
+    }
+
+    [TestMethod]
+    public void Test_Issue17555()
+    {
+        var result = CompilationHelper.Compile("""
+            metadata name = 'ts-devopspool'
+            metadata description = 'Creates a managed devops pool'
+            metadata version = '1.0.0'
+
+            @description('Optional, default value is empty. Resource tags. Dictionary of tag names and values. See Tags in templates')
+            param parTags object = {}
+
+            #disable-next-line no-unused-vars
+            var varTags = union(parTags, {
+              'ts-name': deployment().properties.template.metadata.name
+              'ts-version': deployment().properties.template.metadata.version
+            })
+            """);
+
+        result.Should().NotHaveAnyDiagnostics();
+    }
+
+    [TestMethod]
+    public void Test_Issue18520()
+    {
+        var result = CompilationHelper.Compile(
+            ("main.bicep", """
+                module mod 'mod.bicep' = [for i in range(0, 10): if (i >= 0) {}]
+
+                module mod2 'mod2.bicep' = {
+                  params: {
+                    secureStrings: [for i in range(0, 10): mod[i]!.outputs.foo]
+                  }
+                }
+                
+                """),
+            ("mod.bicep", """
+                @secure()
+                output foo string = 'foo'
+                """),
+            ("mod2.bicep", """
+                @secure()
+                type secureString = string
+
+                param secureStrings secureString[]
+                """));
+
+        result.Should().NotHaveAnyDiagnostics();
+    }
+
+    [TestMethod]
+    public void Test_Issue18603()
+    {
+        var result = CompilationHelper.Compile("""
+            @secure()
+            param secretValue string
+
+            resource keyVault 'Microsoft.KeyVault/vaults@2025-05-01' = {
+              name: 'name'
+              location: resourceGroup().location
+              properties: {
+                tenantId: subscription().tenantId
+                sku: {
+                  family: 'A'
+                  name: 'standard'
+                }
+                softDeleteRetentionInDays: 30
+                enableRbacAuthorization: true
+              }
+
+              @onlyIfNotExists()
+              resource clientSecret 'secrets' = {
+                name: 'secret'
+                properties: {
+                  value: secretValue
+                }
+              }
+            }
+            """);
+
+        result.Should().NotHaveAnyDiagnostics();
+        result.Template.Should().NotBeNull();
+        result.Template.Should().HaveValueAtPath("languageVersion", "2.0");
+    }
+
+    [TestMethod]
+    public void Syntactically_nested_existing_resources_with_explicit_dependencies_should_use_lv_2()
+    {
+        var result = CompilationHelper.Compile("""
+            resource keyVault 'Microsoft.KeyVault/vaults@2025-05-01' existing = {
+              name: 'name'
+
+              resource clientSecret 'secrets' existing = {
+                name: 'secret'
+                dependsOn: [
+                  c
+                ]
+              }
+            }
+            
+            
+            resource c 'Microsoft.Network/dnsZones@2018-05-01' = {
+              name: 'zone'
+              location: resourceGroup().location
+            }
+            """);
+
+        result.Should().NotHaveAnyDiagnostics();
+        result.Template.Should().NotBeNull();
+        result.Template.Should().HaveValueAtPath("languageVersion", "2.0");
     }
 }

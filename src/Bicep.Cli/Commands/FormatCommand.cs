@@ -8,7 +8,6 @@ using Bicep.Core.Configuration;
 using Bicep.Core.Diagnostics;
 using Bicep.Core.Extensions;
 using Bicep.Core.Features;
-using Bicep.Core.FileSystem;
 using Bicep.Core.Parsing;
 using Bicep.Core.PrettyPrint;
 using Bicep.Core.PrettyPrintV2;
@@ -58,8 +57,8 @@ public class FormatCommand(
 
             if (outputToStdOut)
             {
-                io.Output.Write(output);
-                io.Output.Flush();
+                io.Output.Writer.Write(output);
+                io.Output.Writer.Flush();
             }
             else
             {
@@ -74,8 +73,8 @@ public class FormatCommand(
 
         if (outputToStdOut)
         {
-            PrettyPrinterV2.PrintTo(io.Output, sourceFile.ProgramSyntax, context);
-            io.Output.Flush();
+            PrettyPrinterV2.PrintTo(io.Output.Writer, sourceFile.ProgramSyntax, context);
+            io.Output.Writer.Flush();
         }
         else
         {

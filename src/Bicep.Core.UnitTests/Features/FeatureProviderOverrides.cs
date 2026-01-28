@@ -23,9 +23,9 @@ public record FeatureProviderOverrides(
     bool? ExtendableParamFilesEnabled = default,
     string? AssemblyVersion = BicepTestConstants.DevAssemblyFileVersion,
     bool? ModuleExtensionConfigsEnabled = default,
-    bool? DesiredStateConfigurationEnabled = default,
-    bool? OnlyIfNotExistsEnabled = default,
-    bool? ModuleIdentityEnabled = default)
+    bool? UserDefinedConstraintsEnabled = default,
+    bool? DeployCommandsEnabled = default,
+    bool? ThisNamespaceEnabled = default)
 {
     public FeatureProviderOverrides(
         TestContext testContext,
@@ -43,27 +43,26 @@ public record FeatureProviderOverrides(
         bool? ExtendableParamFilesEnabled = default,
         string? AssemblyVersion = BicepTestConstants.DevAssemblyFileVersion,
         bool? ModuleExtensionConfigsEnabled = default,
-        bool? DesiredStateConfigurationEnabled = default,
-        bool? OnlyIfNotExistsEnabled = default,
-        bool? ModuleIdentityEnabled = default
-    ) : this(
-        FileHelper.GetCacheRootDirectory(testContext),
-        RegistryEnabled,
-        SymbolicNameCodegenEnabled,
-        AdvancedListComprehensionEnabled,
-        ResourceTypedParamsAndOutputsEnabled,
-        SourceMappingEnabled,
-        LegacyFormatterEnabled,
-        TestFrameworkEnabled,
-        AssertsEnabled,
-        WaitAndRetryEnabled,
-        LocalDeployEnabled,
-        ResourceInfoCodegenEnabled,
-        ExtendableParamFilesEnabled,
-        AssemblyVersion,
-        ModuleExtensionConfigsEnabled,
-        DesiredStateConfigurationEnabled,
-        OnlyIfNotExistsEnabled,
-        ModuleIdentityEnabled)
+        bool? UserDefinedConstraintsEnabled = default,
+        bool? DeployCommandsEnabled = default,
+        bool? ThisNamespaceEnabled = default) : this(
+            FileHelper.GetCacheRootDirectory(testContext),
+            RegistryEnabled,
+            SymbolicNameCodegenEnabled,
+            AdvancedListComprehensionEnabled,
+            ResourceTypedParamsAndOutputsEnabled,
+            SourceMappingEnabled,
+            LegacyFormatterEnabled,
+            TestFrameworkEnabled,
+            AssertsEnabled,
+            WaitAndRetryEnabled,
+            LocalDeployEnabled,
+            ResourceInfoCodegenEnabled,
+            ExtendableParamFilesEnabled,
+            AssemblyVersion,
+            ModuleExtensionConfigsEnabled,
+            UserDefinedConstraintsEnabled,
+            DeployCommandsEnabled,
+            ThisNamespaceEnabled)
     { }
 }

@@ -33,7 +33,10 @@ public class TraceEventSource : ICommonEventSource, IDeploymentEventSource
         var sb = new StringBuilder();
         sb.AppendFormat("{0}: ", callingMethod);
 
-        foreach (var prop in paramsObj.GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public))
+#pragma warning disable IL2075 // 'this' argument does not satisfy 'DynamicallyAccessedMembersAttribute' in call to target method. The return value of the source method does not have matching annotations.
+        var properties = paramsObj.GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public);
+#pragma warning restore IL2075 // 'this' argument does not satisfy 'DynamicallyAccessedMembersAttribute' in call to target method. The return value of the source method does not have matching annotations.
+        foreach (var prop in properties)
         {
             var name = prop.Name;
             var value = prop.GetValue(paramsObj, null);
@@ -47,7 +50,15 @@ public class TraceEventSource : ICommonEventSource, IDeploymentEventSource
             sb.AppendFormat("{0}={1}, ", name, value);
         }
 
-        Trace.WriteLine(sb.ToString());
+        var traceLine = sb.ToString();
+        // exclude unnecessarily noisy traces
+        if (traceLine.Contains("operationName=EnablementConfigExtensions.") ||
+            traceLine.Contains("operationName=DataProviderHolderBase."))
+        {
+            return;
+        }
+
+        Trace.WriteLine(traceLine);
     }
 
     public void Critical(string subscriptionId, string correlationId, string principalOid, string principalPuid, string tenantId, string operationName, string message, string exception, string organizationId, string activityVector, string realPuid, string altSecId, string additionalProperties)
@@ -63,12 +74,10 @@ public class TraceEventSource : ICommonEventSource, IDeploymentEventSource
         => WriteToTrace(TraceVerbosity.Full, new { operationName, message, exception, });
 
     public void DeploymentOperations(string apiVersion, string resourceGroupName, string resourceGroupLocation, string deploymentName, string deploymentSequenceId, string operationId, DateTime startTime, string executionStatus, string statusCode, string statusMessage, string providerNamespace, string provisioningOperation, string resourceType, string resourceName, string resourceId, string resourceLocation, string resourceExtendedLocation, long totalExecutionCount, string resourceReferenceType, string additionalProperties)
-    {
-    }
+        => WriteToTrace(TraceVerbosity.Full, new { deploymentName, provisioningOperation, startTime, executionStatus, resourceId, additionalProperties });
 
     public void Deployments(string resourceGroupName, string resourceGroupLocation, string frontdoorLocation, string deploymentName, string deploymentSequenceId, string templateHash, string parametersHash, DateTime startTime, string executionStatus, string onErrorDeploymentName, string deploymentMode, string templateLinkId, string templateLinkUri, long resourceProviderCount, long resourceTypeCount, long locationCount, long dependencyCount, string debugSetting, string generatorName, string generatorVersion, string generatorTemplateHash, string deploymentResourceId, string additionalProperties, SequencerAction[] sequencerActions)
-    {
-    }
+        => WriteToTrace(TraceVerbosity.Full, new { deploymentName, startTime, executionStatus, additionalProperties });
 
     public void DispatcherCritical(string dispatcherName, string operationName, string message, string queueMessage, string exception, string errorCode, int dequeueCount, string insertionTime, string subscriptionId, string correlationId, string principalOid, string principalPuid, string tenantId, string organizationId, string activityVector, string realPuid, string altSecId, string additionalProperties)
         => WriteToTrace(TraceVerbosity.Basic, new { operationName, message, exception, additionalProperties, });
@@ -148,8 +157,7 @@ public class TraceEventSource : ICommonEventSource, IDeploymentEventSource
         => WriteToTrace(TraceVerbosity.Basic, new { operationName, jobPartition, jobId, message, exception, additionalProperties, });
 
     public void JobExecutionStatus(string jobType, string jobPartition, string jobId, string operationName, string resourceProvider, string resourceType, string resourceName, string executionInterval, string executionDelay, DateTime expectedStartTime, DateTime startTime, DateTime endTime, string executionStatus, string executionFailureCause, string executionFailureDetails, string nextExecutionTime, string lastDependencyJob, string jobStatus, string jobCompletionStatus, string jobFailureCause, string jobDuration)
-    {
-    }
+        => WriteToTrace(TraceVerbosity.Full, new { operationName, jobPartition, jobId, executionStatus, executionFailureCause, executionFailureDetails, nextExecutionTime, });
 
     public void JobHistory(string jobPartition, string jobId, string callback, string startTime, string endTime, string executionTimeInMilliseconds, string executionDelayInMilliseconds, string executionIntervalInMilliseconds, string executionStatus, string executionMessage, string executionDetails, string nextExecutionTime, string subscriptionId, string correlationId, string principalOid, string principalPuid, string tenantId, string dequeueCount, string advanceVersion, string triggerId, string messageId, string state, string organizationId, string activityVector, string realPuid, string altSecId, string additionalProperties, string jobDurabilityLevel)
         => WriteToTrace(TraceVerbosity.Full, new { jobPartition, jobId, callback, executionStatus, executionMessage, executionDetails, additionalProperties, });

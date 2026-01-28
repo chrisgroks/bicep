@@ -21,7 +21,9 @@ param boolParam1 bool
 // BEGIN: Variables
 
 var strVar1 = 'strVar1Value'
-//@    "strVar1": "strVar1Value"
+//@    "strVar1": "strVar1Value",
+var strParamVar1 = strParam1
+//@    "strParamVar1": "[parameters('strParam1')]"
 
 // END: Variables
 
@@ -30,15 +32,71 @@ var strVar1 = 'strVar1Value'
 extension az
 //@    "az": {
 //@      "name": "AzureResourceManager",
-//@      "version": "0.2.789"
+//@      "version": "0.2.830"
 //@    },
 extension kubernetes as k8s
 //@    "k8s": {
 //@      "name": "Kubernetes",
 //@      "version": "1.0.0"
+//@    },
+extension 'br:mcr.microsoft.com/bicep/extensions/hasoptionalconfig/v1:1.2.3' as extWithOptionalConfig1
+//@    "extWithOptionalConfig1": {
+//@      "name": "hasoptionalconfig",
+//@      "version": "1.2.3"
+//@    },
+extension 'br:mcr.microsoft.com/bicep/extensions/hasoptionalconfig/v1:1.2.3' as extWithOptionalConfig2
+//@    "extWithOptionalConfig2": {
+//@      "name": "hasoptionalconfig",
+//@      "version": "1.2.3"
+//@    },
+extension 'br:mcr.microsoft.com/bicep/extensions/hasoptionalconfig/v1:1.2.3' with {
+//@    "extWithOptionalConfig3": {
+//@      "name": "hasoptionalconfig",
+//@      "version": "1.2.3",
+//@      "config": {
+//@        "optionalString": {
+//@        }
+//@      }
+//@    },
+  optionalString: strParam1
+//@          "defaultValue": "[parameters('strParam1')]"
+} as extWithOptionalConfig3
+extension 'br:mcr.microsoft.com/bicep/extensions/hassecureconfig/v1:1.2.3' with {
+//@    "extWithSecureStr1": {
+//@      "name": "hassecureconfig",
+//@      "version": "1.2.3",
+//@      "config": {
+//@        "requiredSecureString": {
+//@        }
+//@      }
+//@    },
+  requiredSecureString: secureStrParam1
+//@          "defaultValue": "[parameters('secureStrParam1')]"
+} as extWithSecureStr1
+extension 'br:mcr.microsoft.com/bicep/extensions/hasconfig/v1:1.2.3' with {
+//@    "extWithConfig1": {
+//@      "name": "hasconfig",
+//@      "version": "1.2.3",
+//@      "config": {
+//@        "requiredString": {
+//@        }
+//@      }
+//@    },
+  requiredString: testResource1.id
+//@          "defaultValue": "[resourceId('My.Rp/TestType', 'testResource1')]"
+} as extWithConfig1
+extension 'br:mcr.microsoft.com/bicep/extensions/hasconfig/v1:1.2.3' with {
+//@    "extWithConfig2": {
+//@      "name": "hasconfig",
+//@      "version": "1.2.3",
+//@      "config": {
+//@        "requiredString": {
+//@        }
+//@      }
 //@    }
-
-//extension 'br:mcr.microsoft.com/bicep/extensions/microsoftgraph/v1:1.2.3' as graph
+  requiredString: boolParam1 ? strParamVar1 : strParam1
+//@          "defaultValue": "[if(parameters('boolParam1'), variables('strParamVar1'), parameters('strParam1'))]"
+} as extWithConfig2
 
 // END: Extension declarations
 
@@ -103,7 +161,7 @@ resource aks 'Microsoft.ContainerService/managedClusters@2024-02-01' = {
 module moduleWithExtsWithAliases 'child/hasConfigurableExtensionsWithAlias.bicep' = {
 //@    "moduleWithExtsWithAliases": {
 //@      "type": "Microsoft.Resources/deployments",
-//@      "apiVersion": "2025-03-01",
+//@      "apiVersion": "2025-04-01",
 //@      "name": "[format('moduleWithExtsWithAliases-{0}', uniqueString('moduleWithExtsWithAliases', deployment().name))]",
 //@      "properties": {
 //@        "expressionEvaluationOptions": {
@@ -122,13 +180,17 @@ module moduleWithExtsWithAliases 'child/hasConfigurableExtensionsWithAlias.bicep
 //@            "_generator": {
 //@              "name": "bicep",
 //@              "version": "dev",
-//@              "templateHash": "15850125793643788204"
+//@              "templateHash": "3264144588958898863"
 //@            }
 //@          },
 //@          "extensions": {
 //@            "k8s": {
 //@              "name": "Kubernetes",
 //@              "version": "1.0.0"
+//@            },
+//@            "extWithOptionalConfig": {
+//@              "name": "hasoptionalconfig",
+//@              "version": "1.2.3"
 //@            }
 //@          },
 //@          "resources": {}
@@ -156,7 +218,7 @@ module moduleWithExtsWithAliases 'child/hasConfigurableExtensionsWithAlias.bicep
 module moduleWithExtsWithoutAliases 'child/hasConfigurableExtensionsWithoutAlias.bicep' = {
 //@    "moduleWithExtsWithoutAliases": {
 //@      "type": "Microsoft.Resources/deployments",
-//@      "apiVersion": "2025-03-01",
+//@      "apiVersion": "2025-04-01",
 //@      "name": "[format('moduleWithExtsWithoutAliases-{0}', uniqueString('moduleWithExtsWithoutAliases', deployment().name))]",
 //@      "properties": {
 //@        "expressionEvaluationOptions": {
@@ -210,7 +272,7 @@ module moduleWithExtsWithoutAliases 'child/hasConfigurableExtensionsWithoutAlias
 module moduleExtConfigsFromParams 'child/hasConfigurableExtensionsWithAlias.bicep' = {
 //@    "moduleExtConfigsFromParams": {
 //@      "type": "Microsoft.Resources/deployments",
-//@      "apiVersion": "2025-03-01",
+//@      "apiVersion": "2025-04-01",
 //@      "name": "[format('moduleExtConfigsFromParams-{0}', uniqueString('moduleExtConfigsFromParams', deployment().name))]",
 //@      "properties": {
 //@        "expressionEvaluationOptions": {
@@ -229,13 +291,17 @@ module moduleExtConfigsFromParams 'child/hasConfigurableExtensionsWithAlias.bice
 //@            "_generator": {
 //@              "name": "bicep",
 //@              "version": "dev",
-//@              "templateHash": "15850125793643788204"
+//@              "templateHash": "3264144588958898863"
 //@            }
 //@          },
 //@          "extensions": {
 //@            "k8s": {
 //@              "name": "Kubernetes",
 //@              "version": "1.0.0"
+//@            },
+//@            "extWithOptionalConfig": {
+//@              "name": "hasoptionalconfig",
+//@              "version": "1.2.3"
 //@            }
 //@          },
 //@          "resources": {}
@@ -259,7 +325,7 @@ module moduleExtConfigsFromParams 'child/hasConfigurableExtensionsWithAlias.bice
 module moduleExtConfigFromKeyVaultReference 'child/hasConfigurableExtensionsWithAlias.bicep' = {
 //@    "moduleExtConfigFromKeyVaultReference": {
 //@      "type": "Microsoft.Resources/deployments",
-//@      "apiVersion": "2025-03-01",
+//@      "apiVersion": "2025-04-01",
 //@      "name": "[format('moduleExtConfigFromKeyVaultReference-{0}', uniqueString('moduleExtConfigFromKeyVaultReference', deployment().name))]",
 //@      "properties": {
 //@        "expressionEvaluationOptions": {
@@ -278,13 +344,17 @@ module moduleExtConfigFromKeyVaultReference 'child/hasConfigurableExtensionsWith
 //@            "_generator": {
 //@              "name": "bicep",
 //@              "version": "dev",
-//@              "templateHash": "15850125793643788204"
+//@              "templateHash": "3264144588958898863"
 //@            }
 //@          },
 //@          "extensions": {
 //@            "k8s": {
 //@              "name": "Kubernetes",
 //@              "version": "1.0.0"
+//@            },
+//@            "extWithOptionalConfig": {
+//@              "name": "hasoptionalconfig",
+//@              "version": "1.2.3"
 //@            }
 //@          },
 //@          "resources": {}
@@ -317,7 +387,7 @@ module moduleExtConfigFromKeyVaultReference 'child/hasConfigurableExtensionsWith
 module moduleExtConfigFromReferences 'child/hasConfigurableExtensionsWithAlias.bicep' = {
 //@    "moduleExtConfigFromReferences": {
 //@      "type": "Microsoft.Resources/deployments",
-//@      "apiVersion": "2025-03-01",
+//@      "apiVersion": "2025-04-01",
 //@      "name": "[format('moduleExtConfigFromReferences-{0}', uniqueString('moduleExtConfigFromReferences', deployment().name))]",
 //@      "properties": {
 //@        "expressionEvaluationOptions": {
@@ -336,13 +406,17 @@ module moduleExtConfigFromReferences 'child/hasConfigurableExtensionsWithAlias.b
 //@            "_generator": {
 //@              "name": "bicep",
 //@              "version": "dev",
-//@              "templateHash": "15850125793643788204"
+//@              "templateHash": "3264144588958898863"
 //@            }
 //@          },
 //@          "extensions": {
 //@            "k8s": {
 //@              "name": "Kubernetes",
 //@              "version": "1.0.0"
+//@            },
+//@            "extWithOptionalConfig": {
+//@              "name": "hasoptionalconfig",
+//@              "version": "1.2.3"
 //@            }
 //@          },
 //@          "resources": {}
@@ -374,7 +448,7 @@ module moduleExtConfigFromReferences 'child/hasConfigurableExtensionsWithAlias.b
 module moduleWithExtsUsingFullInheritance 'child/hasConfigurableExtensionsWithAlias.bicep' = {
 //@    "moduleWithExtsUsingFullInheritance": {
 //@      "type": "Microsoft.Resources/deployments",
-//@      "apiVersion": "2025-03-01",
+//@      "apiVersion": "2025-04-01",
 //@      "name": "[format('moduleWithExtsUsingFullInheritance-{0}', uniqueString('moduleWithExtsUsingFullInheritance', deployment().name))]",
 //@      "properties": {
 //@        "expressionEvaluationOptions": {
@@ -393,13 +467,17 @@ module moduleWithExtsUsingFullInheritance 'child/hasConfigurableExtensionsWithAl
 //@            "_generator": {
 //@              "name": "bicep",
 //@              "version": "dev",
-//@              "templateHash": "15850125793643788204"
+//@              "templateHash": "3264144588958898863"
 //@            }
 //@          },
 //@          "extensions": {
 //@            "k8s": {
 //@              "name": "Kubernetes",
 //@              "version": "1.0.0"
+//@            },
+//@            "extWithOptionalConfig": {
+//@              "name": "hasoptionalconfig",
+//@              "version": "1.2.3"
 //@            }
 //@          },
 //@          "resources": {}
@@ -414,10 +492,59 @@ module moduleWithExtsUsingFullInheritance 'child/hasConfigurableExtensionsWithAl
   }
 }
 
+module moduleWithExtsUsingFullInheritanceTernary1 'child/hasConfigurableExtensionsWithAlias.bicep' = {
+//@    "moduleWithExtsUsingFullInheritanceTernary1": {
+//@      "type": "Microsoft.Resources/deployments",
+//@      "apiVersion": "2025-04-01",
+//@      "name": "[format('moduleWithExtsUsingFullInheritanceTernary1-{0}', uniqueString('moduleWithExtsUsingFullInheritanceTernary1', deployment().name))]",
+//@      "properties": {
+//@        "expressionEvaluationOptions": {
+//@          "scope": "inner"
+//@        },
+//@        "mode": "Incremental",
+//@        "template": {
+//@          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+//@          "languageVersion": "2.2-experimental",
+//@          "contentVersion": "1.0.0.0",
+//@          "metadata": {
+//@            "_EXPERIMENTAL_WARNING": "This template uses ARM features that are experimental. Experimental features should be enabled for testing purposes only, as there are no guarantees about the quality or stability of these features. Do not enable these settings for any production usage, or your production environment may be subject to breaking.",
+//@            "_EXPERIMENTAL_FEATURES_ENABLED": [
+//@              "Enable defining extension configs for modules"
+//@            ],
+//@            "_generator": {
+//@              "name": "bicep",
+//@              "version": "dev",
+//@              "templateHash": "3264144588958898863"
+//@            }
+//@          },
+//@          "extensions": {
+//@            "k8s": {
+//@              "name": "Kubernetes",
+//@              "version": "1.0.0"
+//@            },
+//@            "extWithOptionalConfig": {
+//@              "name": "hasoptionalconfig",
+//@              "version": "1.2.3"
+//@            }
+//@          },
+//@          "resources": {}
+//@        }
+//@      }
+//@    },
+  extensionConfigs: {
+//@        "extensionConfigs": {
+//@        },
+    k8s: k8s.config
+//@          "k8s": "[extensions('k8s').config]",
+    extWithOptionalConfig: boolParam1 ? extWithOptionalConfig1.config : extWithOptionalConfig2.config
+//@          "extWithOptionalConfig": "[if(parameters('boolParam1'), extensions('extWithOptionalConfig1').config, extensions('extWithOptionalConfig2').config)]"
+  }
+}
+
 module moduleWithExtsUsingPiecemealInheritance 'child/hasConfigurableExtensionsWithAlias.bicep' = {
 //@    "moduleWithExtsUsingPiecemealInheritance": {
 //@      "type": "Microsoft.Resources/deployments",
-//@      "apiVersion": "2025-03-01",
+//@      "apiVersion": "2025-04-01",
 //@      "name": "[format('moduleWithExtsUsingPiecemealInheritance-{0}', uniqueString('moduleWithExtsUsingPiecemealInheritance', deployment().name))]",
 //@      "properties": {
 //@        "expressionEvaluationOptions": {
@@ -436,13 +563,17 @@ module moduleWithExtsUsingPiecemealInheritance 'child/hasConfigurableExtensionsW
 //@            "_generator": {
 //@              "name": "bicep",
 //@              "version": "dev",
-//@              "templateHash": "15850125793643788204"
+//@              "templateHash": "3264144588958898863"
 //@            }
 //@          },
 //@          "extensions": {
 //@            "k8s": {
 //@              "name": "Kubernetes",
 //@              "version": "1.0.0"
+//@            },
+//@            "extWithOptionalConfig": {
+//@              "name": "hasoptionalconfig",
+//@              "version": "1.2.3"
 //@            }
 //@          },
 //@          "resources": {}
@@ -470,7 +601,7 @@ module moduleWithExtsUsingPiecemealInheritanceLooped 'child/hasConfigurableExten
 //@        "count": "[length(range(0, 4))]"
 //@      },
 //@      "type": "Microsoft.Resources/deployments",
-//@      "apiVersion": "2025-03-01",
+//@      "apiVersion": "2025-04-01",
 //@      "properties": {
 //@        "expressionEvaluationOptions": {
 //@          "scope": "inner"
@@ -488,13 +619,17 @@ module moduleWithExtsUsingPiecemealInheritanceLooped 'child/hasConfigurableExten
 //@            "_generator": {
 //@              "name": "bicep",
 //@              "version": "dev",
-//@              "templateHash": "15850125793643788204"
+//@              "templateHash": "3264144588958898863"
 //@            }
 //@          },
 //@          "extensions": {
 //@            "k8s": {
 //@              "name": "Kubernetes",
 //@              "version": "1.0.0"
+//@            },
+//@            "extWithOptionalConfig": {
+//@              "name": "hasoptionalconfig",
+//@              "version": "1.2.3"
 //@            }
 //@          },
 //@          "resources": {}
@@ -520,7 +655,7 @@ module moduleWithExtsUsingPiecemealInheritanceLooped 'child/hasConfigurableExten
 module moduleExtConfigsConditionalMixed 'child/hasConfigurableExtensionsWithAlias.bicep' = {
 //@    "moduleExtConfigsConditionalMixed": {
 //@      "type": "Microsoft.Resources/deployments",
-//@      "apiVersion": "2025-03-01",
+//@      "apiVersion": "2025-04-01",
 //@      "name": "[format('moduleExtConfigsConditionalMixed-{0}', uniqueString('moduleExtConfigsConditionalMixed', deployment().name))]",
 //@      "properties": {
 //@        "expressionEvaluationOptions": {
@@ -539,19 +674,23 @@ module moduleExtConfigsConditionalMixed 'child/hasConfigurableExtensionsWithAlia
 //@            "_generator": {
 //@              "name": "bicep",
 //@              "version": "dev",
-//@              "templateHash": "15850125793643788204"
+//@              "templateHash": "3264144588958898863"
 //@            }
 //@          },
 //@          "extensions": {
 //@            "k8s": {
 //@              "name": "Kubernetes",
 //@              "version": "1.0.0"
+//@            },
+//@            "extWithOptionalConfig": {
+//@              "name": "hasoptionalconfig",
+//@              "version": "1.2.3"
 //@            }
 //@          },
 //@          "resources": {}
 //@        }
 //@      }
-//@    }
+//@    },
   extensionConfigs: {
 //@        "extensionConfigs": {
 //@        },
@@ -563,6 +702,55 @@ module moduleExtConfigsConditionalMixed 'child/hasConfigurableExtensionsWithAlia
       namespace: boolParam1 ? az.resourceGroup().location : k8s.config.namespace
 //@            "namespace": "[if(parameters('boolParam1'), createObject('value', resourceGroup().location), extensions('k8s').config.namespace)]"
     }
+  }
+}
+
+module moduleWithExtsEmpty 'child/hasConfigurableExtensionsWithAlias.bicep' = {
+//@    "moduleWithExtsEmpty": {
+//@      "type": "Microsoft.Resources/deployments",
+//@      "apiVersion": "2025-04-01",
+//@      "name": "[format('moduleWithExtsEmpty-{0}', uniqueString('moduleWithExtsEmpty', deployment().name))]",
+//@      "properties": {
+//@        "expressionEvaluationOptions": {
+//@          "scope": "inner"
+//@        },
+//@        "mode": "Incremental",
+//@        "template": {
+//@          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+//@          "languageVersion": "2.2-experimental",
+//@          "contentVersion": "1.0.0.0",
+//@          "metadata": {
+//@            "_EXPERIMENTAL_WARNING": "This template uses ARM features that are experimental. Experimental features should be enabled for testing purposes only, as there are no guarantees about the quality or stability of these features. Do not enable these settings for any production usage, or your production environment may be subject to breaking.",
+//@            "_EXPERIMENTAL_FEATURES_ENABLED": [
+//@              "Enable defining extension configs for modules"
+//@            ],
+//@            "_generator": {
+//@              "name": "bicep",
+//@              "version": "dev",
+//@              "templateHash": "3264144588958898863"
+//@            }
+//@          },
+//@          "extensions": {
+//@            "k8s": {
+//@              "name": "Kubernetes",
+//@              "version": "1.0.0"
+//@            },
+//@            "extWithOptionalConfig": {
+//@              "name": "hasoptionalconfig",
+//@              "version": "1.2.3"
+//@            }
+//@          },
+//@          "resources": {}
+//@        }
+//@      }
+//@    }
+  extensionConfigs: {
+//@        "extensionConfigs": {
+//@        },
+    k8s: k8s.config
+//@          "k8s": "[extensions('k8s').config]",
+    extWithOptionalConfig: {}
+//@          "extWithOptionalConfig": {}
   }
 }
 

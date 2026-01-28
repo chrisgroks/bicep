@@ -16,16 +16,16 @@ using Azure.Deployments.Templates.Exceptions;
 using Azure.Deployments.Templates.ParsedEntities;
 using Bicep.Cli.Arguments;
 using Bicep.Cli.Helpers;
-using Bicep.Cli.Helpers.Snapshot;
+using Bicep.Cli.Helpers.Snapshots;
 using Bicep.Cli.Helpers.WhatIf;
 using Bicep.Cli.Logging;
 using Bicep.Core;
 using Bicep.Core.Diagnostics;
 using Bicep.Core.Emit;
 using Bicep.Core.Extensions;
-using Bicep.Core.FileSystem;
 using Bicep.Core.Json;
 using Bicep.Core.TypeSystem;
+using Bicep.Core.Utils.Snapshots;
 using Bicep.IO.Abstraction;
 using Microsoft.Extensions.Logging;
 using Microsoft.WindowsAzure.ResourceStack.Common.Json;
@@ -80,7 +80,7 @@ public class SnapshotCommand(
                         logger.LogWarning("Snapshot validation failed. Expected no changes, but found the following:");
                     }
 
-                    await io.Output.WriteAsync(WhatIfOperationResultFormatter.Format(changes));
+                    await io.Output.Writer.WriteAsync(WhatIfOperationResultFormatter.Format(changes));
                     return changes.Any() ? 1 : 0;
                 }
             default:
@@ -90,7 +90,7 @@ public class SnapshotCommand(
 
     private async Task<Snapshot?> GetSnapshot(SnapshotArguments arguments, IOUri inputUri, bool noRestore, CancellationToken cancellationToken)
     {
-        var compilation = await compiler.CreateCompilation(inputUri.ToUri(), skipRestore: noRestore);
+        var compilation = await compiler.CreateCompilation(inputUri, skipRestore: noRestore);
         CommandHelper.LogExperimentalWarning(logger, compilation);
 
         var summary = diagnosticLogger.LogDiagnostics(DiagnosticOptions.Default, compilation);
@@ -132,7 +132,7 @@ public class SnapshotCommand(
         if (!file.TryReadAllText().IsSuccess(out var contents, out var failureBuilder))
         {
             var message = failureBuilder(DiagnosticBuilder.ForDocumentStart()).Message;
-            throw new CommandLineException($"Error opening file {uri.GetLocalFilePath()}: {message}.");
+            throw new CommandLineException($"Error opening file {uri.GetFilePath()}: {message}.");
         }
 
         return SnapshotHelper.Deserialize(contents);

@@ -36,6 +36,12 @@ var strVar1 = 'strVar1Value'
 //@[004:011) Identifier |strVar1|
 //@[012:013) Assignment |=|
 //@[014:028) StringComplete |'strVar1Value'|
+//@[028:030) NewLine |\r\n|
+var strParamVar1 = strParam1
+//@[000:003) Identifier |var|
+//@[004:016) Identifier |strParamVar1|
+//@[017:018) Assignment |=|
+//@[019:028) Identifier |strParam1|
 //@[028:032) NewLine |\r\n\r\n|
 
 // END: Variables
@@ -53,10 +59,89 @@ extension kubernetes as k8s
 //@[010:020) Identifier |kubernetes|
 //@[021:023) Identifier |as|
 //@[024:027) Identifier |k8s|
-//@[027:031) NewLine |\r\n\r\n|
-
-//extension 'br:mcr.microsoft.com/bicep/extensions/microsoftgraph/v1:1.2.3' as graph
-//@[084:088) NewLine |\r\n\r\n|
+//@[027:029) NewLine |\r\n|
+extension 'br:mcr.microsoft.com/bicep/extensions/hasoptionalconfig/v1:1.2.3' as extWithOptionalConfig1
+//@[000:009) Identifier |extension|
+//@[010:076) StringComplete |'br:mcr.microsoft.com/bicep/extensions/hasoptionalconfig/v1:1.2.3'|
+//@[077:079) Identifier |as|
+//@[080:102) Identifier |extWithOptionalConfig1|
+//@[102:104) NewLine |\r\n|
+extension 'br:mcr.microsoft.com/bicep/extensions/hasoptionalconfig/v1:1.2.3' as extWithOptionalConfig2
+//@[000:009) Identifier |extension|
+//@[010:076) StringComplete |'br:mcr.microsoft.com/bicep/extensions/hasoptionalconfig/v1:1.2.3'|
+//@[077:079) Identifier |as|
+//@[080:102) Identifier |extWithOptionalConfig2|
+//@[102:104) NewLine |\r\n|
+extension 'br:mcr.microsoft.com/bicep/extensions/hasoptionalconfig/v1:1.2.3' with {
+//@[000:009) Identifier |extension|
+//@[010:076) StringComplete |'br:mcr.microsoft.com/bicep/extensions/hasoptionalconfig/v1:1.2.3'|
+//@[077:081) Identifier |with|
+//@[082:083) LeftBrace |{|
+//@[083:085) NewLine |\r\n|
+  optionalString: strParam1
+//@[002:016) Identifier |optionalString|
+//@[016:017) Colon |:|
+//@[018:027) Identifier |strParam1|
+//@[027:029) NewLine |\r\n|
+} as extWithOptionalConfig3
+//@[000:001) RightBrace |}|
+//@[002:004) Identifier |as|
+//@[005:027) Identifier |extWithOptionalConfig3|
+//@[027:029) NewLine |\r\n|
+extension 'br:mcr.microsoft.com/bicep/extensions/hassecureconfig/v1:1.2.3' with {
+//@[000:009) Identifier |extension|
+//@[010:074) StringComplete |'br:mcr.microsoft.com/bicep/extensions/hassecureconfig/v1:1.2.3'|
+//@[075:079) Identifier |with|
+//@[080:081) LeftBrace |{|
+//@[081:083) NewLine |\r\n|
+  requiredSecureString: secureStrParam1
+//@[002:022) Identifier |requiredSecureString|
+//@[022:023) Colon |:|
+//@[024:039) Identifier |secureStrParam1|
+//@[039:041) NewLine |\r\n|
+} as extWithSecureStr1
+//@[000:001) RightBrace |}|
+//@[002:004) Identifier |as|
+//@[005:022) Identifier |extWithSecureStr1|
+//@[022:024) NewLine |\r\n|
+extension 'br:mcr.microsoft.com/bicep/extensions/hasconfig/v1:1.2.3' with {
+//@[000:009) Identifier |extension|
+//@[010:068) StringComplete |'br:mcr.microsoft.com/bicep/extensions/hasconfig/v1:1.2.3'|
+//@[069:073) Identifier |with|
+//@[074:075) LeftBrace |{|
+//@[075:077) NewLine |\r\n|
+  requiredString: testResource1.id
+//@[002:016) Identifier |requiredString|
+//@[016:017) Colon |:|
+//@[018:031) Identifier |testResource1|
+//@[031:032) Dot |.|
+//@[032:034) Identifier |id|
+//@[034:036) NewLine |\r\n|
+} as extWithConfig1
+//@[000:001) RightBrace |}|
+//@[002:004) Identifier |as|
+//@[005:019) Identifier |extWithConfig1|
+//@[019:021) NewLine |\r\n|
+extension 'br:mcr.microsoft.com/bicep/extensions/hasconfig/v1:1.2.3' with {
+//@[000:009) Identifier |extension|
+//@[010:068) StringComplete |'br:mcr.microsoft.com/bicep/extensions/hasconfig/v1:1.2.3'|
+//@[069:073) Identifier |with|
+//@[074:075) LeftBrace |{|
+//@[075:077) NewLine |\r\n|
+  requiredString: boolParam1 ? strParamVar1 : strParam1
+//@[002:016) Identifier |requiredString|
+//@[016:017) Colon |:|
+//@[018:028) Identifier |boolParam1|
+//@[029:030) Question |?|
+//@[031:043) Identifier |strParamVar1|
+//@[044:045) Colon |:|
+//@[046:055) Identifier |strParam1|
+//@[055:057) NewLine |\r\n|
+} as extWithConfig2
+//@[000:001) RightBrace |}|
+//@[002:004) Identifier |as|
+//@[005:019) Identifier |extWithConfig2|
+//@[019:023) NewLine |\r\n\r\n|
 
 // END: Extension declarations
 //@[030:034) NewLine |\r\n\r\n|
@@ -403,6 +488,45 @@ module moduleWithExtsUsingFullInheritance 'child/hasConfigurableExtensionsWithAl
 //@[000:001) RightBrace |}|
 //@[001:005) NewLine |\r\n\r\n|
 
+module moduleWithExtsUsingFullInheritanceTernary1 'child/hasConfigurableExtensionsWithAlias.bicep' = {
+//@[000:006) Identifier |module|
+//@[007:049) Identifier |moduleWithExtsUsingFullInheritanceTernary1|
+//@[050:098) StringComplete |'child/hasConfigurableExtensionsWithAlias.bicep'|
+//@[099:100) Assignment |=|
+//@[101:102) LeftBrace |{|
+//@[102:104) NewLine |\r\n|
+  extensionConfigs: {
+//@[002:018) Identifier |extensionConfigs|
+//@[018:019) Colon |:|
+//@[020:021) LeftBrace |{|
+//@[021:023) NewLine |\r\n|
+    k8s: k8s.config
+//@[004:007) Identifier |k8s|
+//@[007:008) Colon |:|
+//@[009:012) Identifier |k8s|
+//@[012:013) Dot |.|
+//@[013:019) Identifier |config|
+//@[019:021) NewLine |\r\n|
+    extWithOptionalConfig: boolParam1 ? extWithOptionalConfig1.config : extWithOptionalConfig2.config
+//@[004:025) Identifier |extWithOptionalConfig|
+//@[025:026) Colon |:|
+//@[027:037) Identifier |boolParam1|
+//@[038:039) Question |?|
+//@[040:062) Identifier |extWithOptionalConfig1|
+//@[062:063) Dot |.|
+//@[063:069) Identifier |config|
+//@[070:071) Colon |:|
+//@[072:094) Identifier |extWithOptionalConfig2|
+//@[094:095) Dot |.|
+//@[095:101) Identifier |config|
+//@[101:103) NewLine |\r\n|
+  }
+//@[002:003) RightBrace |}|
+//@[003:005) NewLine |\r\n|
+}
+//@[000:001) RightBrace |}|
+//@[001:005) NewLine |\r\n\r\n|
+
 module moduleWithExtsUsingPiecemealInheritance 'child/hasConfigurableExtensionsWithAlias.bicep' = {
 //@[000:006) Identifier |module|
 //@[007:046) Identifier |moduleWithExtsUsingPiecemealInheritance|
@@ -564,6 +688,38 @@ module moduleExtConfigsConditionalMixed 'child/hasConfigurableExtensionsWithAlia
     }
 //@[004:005) RightBrace |}|
 //@[005:007) NewLine |\r\n|
+  }
+//@[002:003) RightBrace |}|
+//@[003:005) NewLine |\r\n|
+}
+//@[000:001) RightBrace |}|
+//@[001:005) NewLine |\r\n\r\n|
+
+module moduleWithExtsEmpty 'child/hasConfigurableExtensionsWithAlias.bicep' = {
+//@[000:006) Identifier |module|
+//@[007:026) Identifier |moduleWithExtsEmpty|
+//@[027:075) StringComplete |'child/hasConfigurableExtensionsWithAlias.bicep'|
+//@[076:077) Assignment |=|
+//@[078:079) LeftBrace |{|
+//@[079:081) NewLine |\r\n|
+  extensionConfigs: {
+//@[002:018) Identifier |extensionConfigs|
+//@[018:019) Colon |:|
+//@[020:021) LeftBrace |{|
+//@[021:023) NewLine |\r\n|
+    k8s: k8s.config
+//@[004:007) Identifier |k8s|
+//@[007:008) Colon |:|
+//@[009:012) Identifier |k8s|
+//@[012:013) Dot |.|
+//@[013:019) Identifier |config|
+//@[019:021) NewLine |\r\n|
+    extWithOptionalConfig: {}
+//@[004:025) Identifier |extWithOptionalConfig|
+//@[025:026) Colon |:|
+//@[027:028) LeftBrace |{|
+//@[028:029) RightBrace |}|
+//@[029:031) NewLine |\r\n|
   }
 //@[002:003) RightBrace |}|
 //@[003:005) NewLine |\r\n|

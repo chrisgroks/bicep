@@ -36,7 +36,8 @@ internal class GrpcLocalExtension(
         Func<GrpcChannel> channelBuilder;
         GrpcChannel? channel = null;
 
-        if (Socket.OSSupportsUnixDomainSockets)
+        // While modern Windows technically supports UDS, many libraries (like Rust's Tokio) do not
+        if (Socket.OSSupportsUnixDomainSockets && !OperatingSystem.IsWindows())
         {
             var socketName = $"{Guid.NewGuid()}.tmp";
             var socketPath = Path.Combine(Path.GetTempPath(), socketName);
@@ -61,7 +62,7 @@ internal class GrpcLocalExtension(
         {
             StartInfo = new ProcessStartInfo
             {
-                FileName = binaryUri.GetLocalFilePath(),
+                FileName = binaryUri.GetFilePath(),
                 Arguments = processArgs,
                 UseShellExecute = false,
                 RedirectStandardError = true,

@@ -5,6 +5,7 @@ using System.IO.Abstractions;
 using System.IO.Abstractions.TestingHelpers;
 using Bicep.Core.Analyzers.Interfaces;
 using Bicep.Core.Configuration;
+using Bicep.Core.Extensions;
 using Bicep.Core.Features;
 using Bicep.Core.FileSystem;
 using Bicep.Core.Registry;
@@ -23,7 +24,7 @@ public static class ServiceBuilderExtensions
     public static ServiceBuilder WithFileExplorer(this ServiceBuilder serviceBuilder, IFileExplorer fileExplorer)
         => serviceBuilder.WithRegistration(x => x.WithFileExplorer(fileExplorer));
 
-    public static ServiceBuilder WithWorkspace(this ServiceBuilder serviceBuilder, IWorkspace workspace)
+    public static ServiceBuilder WithWorkspace(this ServiceBuilder serviceBuilder, IActiveSourceFileSet workspace)
         => serviceBuilder.WithRegistration(x => x.WithWorkspace(workspace));
 
     public static ServiceBuilder WithContainerRegistryClientFactory(this ServiceBuilder serviceBuilder, IContainerRegistryClientFactory containerRegistryClientFactory)
@@ -90,6 +91,14 @@ public static class ServiceBuilderExtensions
         var compiler = services.Build().GetCompiler();
         var workspace = CompilationHelper.CreateWorkspace(compiler.SourceFileFactory, fileContentsByUri);
 
+        return compiler.CreateCompilationWithoutRestore(entryFileUri.ToIOUri(), workspace);
+    }
+
+    public static Compilation BuildCompilation(this ServiceBuilder services, IReadOnlyDictionary<IOUri, string> fileContentsByUri, IOUri entryFileUri)
+    {
+        var compiler = services.Build().GetCompiler();
+        var workspace = CompilationHelper.CreateWorkspace(compiler.SourceFileFactory, fileContentsByUri.ToDictionary(x => x.Key.ToUri(), x => x.Value));
+
         return compiler.CreateCompilationWithoutRestore(entryFileUri, workspace);
     }
 
@@ -98,7 +107,7 @@ public static class ServiceBuilderExtensions
         var compiler = services.Build().GetCompiler();
         var workspace = CompilationHelper.CreateWorkspace(compiler.SourceFileFactory, fileContentsByUri);
 
-        return await compiler.CreateCompilation(entryFileUri, workspace);
+        return await compiler.CreateCompilation(entryFileUri.ToIOUri(), workspace);
     }
 
     public static Compilation BuildCompilation(this ServiceBuilder services, string text)

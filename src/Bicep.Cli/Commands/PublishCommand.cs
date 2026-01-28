@@ -11,7 +11,6 @@ using Bicep.Core.Diagnostics;
 using Bicep.Core.Exceptions;
 using Bicep.Core.Extensions;
 using Bicep.Core.Features;
-using Bicep.Core.FileSystem;
 using Bicep.Core.Registry;
 using Bicep.Core.SourceGraph;
 using Bicep.Core.SourceLink;
@@ -60,7 +59,7 @@ namespace Bicep.Cli.Commands
             {
                 if (publishSource)
                 {
-                    await ioContext.Error.WriteLineAsync($"Cannot publish with source when the target is an ARM template file.");
+                    await ioContext.Error.Writer.WriteLineAsync($"Cannot publish with source when the target is an ARM template file.");
                     return 1;
                 }
 
@@ -75,7 +74,7 @@ namespace Bicep.Cli.Commands
                 return 0;
             }
 
-            var compilation = await compiler.CreateCompilation(inputUri.ToUri(), skipRestore: args.NoRestore);
+            var compilation = await compiler.CreateCompilation(inputUri, skipRestore: args.NoRestore);
             var result = compilation.Emitter.Template();
 
             var summary = diagnosticLogger.LogDiagnostics(DiagnosticOptions.Default, result.Diagnostics);

@@ -2,17 +2,34 @@
 
 param boolParam1 bool
 param strParam1 string
+param objParam1 object
+param invalidParamAssignment1 string = k8s.config.namespace
 
 // END: Parameters
 
-// BEGIN: Valid Extension declarations
+// BEGIN: Valid extension declarations
 
 extension az
 extension kubernetes as k8s
+extension 'br:mcr.microsoft.com/bicep/extensions/hasoptionalconfig/v1:1.2.3' as extWithOptionalConfig1
 
-//extension 'br:mcr.microsoft.com/bicep/extensions/microsoftgraph/v1.0:0.1.8-preview' as graph
+// END: Valid extension declarations
 
-// END: Valid Extension declarations
+// BEGIN: Invalid extension declarations
+
+extension 'br:mcr.microsoft.com/bicep/extensions/hasoptionalconfig/v1:1.2.3' with {
+  optionalString: testResource1.properties.ns // no reference calls, use module extension configs instead.
+} as invalidExtDecl1
+
+extension 'br:mcr.microsoft.com/bicep/extensions/hasoptionalconfig/v1:1.2.3' with {
+  optionalString: newGuid()
+} as invalidExtDecl2
+
+extension 'br:mcr.microsoft.com/bicep/extensions/hassecureconfig/v1:1.2.3' with {
+  requiredSecureString: kv1.getSecret('abc')
+} as invalidExtDecl3
+
+// END: Invalid extension declarations
 
 // BEGIN: Key vaults
 
@@ -95,6 +112,18 @@ module moduleWithExtsUsingVar2 'child/hasConfigurableExtensionsWithAlias.bicep' 
   }
 }
 
+module moduleWithExtsUsingParam1 'child/hasConfigurableExtensionsWithAlias.bicep' = {
+  extensionConfigs: {
+    k8s: objParam1
+  }
+}
+
+module moduleWithExtsUsingReference1 'child/hasConfigurableExtensionsWithAlias.bicep' = {
+  extensionConfigs: {
+    k8s: testResource1.properties
+  }
+}
+
 module moduleInvalidSpread1 'child/hasConfigurableExtensionsWithAlias.bicep' = {
   extensionConfigs: {
     ...extensionConfigsVar
@@ -106,6 +135,20 @@ module moduleInvalidSpread2 'child/hasConfigurableExtensionsWithAlias.bicep' = {
     k8s: {
       ...k8sConfigDeployTime
     }
+  }
+}
+
+module moduleInvalidInheritanceTernary1 'child/hasConfigurableExtensionsWithAlias.bicep' = {
+  extensionConfigs: {
+    k8s: k8s.config
+    extWithOptionalConfig1: boolParam1 ? extWithOptionalConfig1.config : k8s.config
+  }
+}
+
+module moduleInvalidInheritanceTernary2 'child/hasConfigurableExtensionsWithAlias.bicep' = {
+  extensionConfigs: {
+    k8s: k8s.config
+    extWithOptionalConfig1: boolParam1 ? extWithOptionalConfig1.config : { optionalString: 'value' } // limitation: cannot mix these currently due to special code gen needed for object literals
   }
 }
 

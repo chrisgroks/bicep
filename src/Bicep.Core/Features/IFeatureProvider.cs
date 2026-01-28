@@ -25,8 +25,6 @@ public interface IFeatureProvider
 
     bool WaitAndRetryEnabled { get; }
 
-    bool OnlyIfNotExistsEnabled { get; }
-
     bool LocalDeployEnabled { get; }
 
     bool ExtendableParamFilesEnabled { get; }
@@ -35,9 +33,11 @@ public interface IFeatureProvider
 
     bool ModuleExtensionConfigsEnabled { get; }
 
-    bool DesiredStateConfigurationEnabled { get; }
+    bool UserDefinedConstraintsEnabled { get; }
 
-    bool ModuleIdentityEnabled { get; }
+    bool DeployCommandsEnabled { get; }
+
+    bool ThisNamespaceEnabled { get; }
 
     IEnumerable<(string name, bool impactsCompilation, bool usesExperimentalArmEngineFeature)> EnabledFeatureMetadata
     {
@@ -54,12 +54,12 @@ public interface IFeatureProvider
                 (TestFrameworkEnabled, CoreResources.ExperimentalFeatureNames_TestFramework, false, false),
                 (AssertsEnabled, CoreResources.ExperimentalFeatureNames_Asserts, true, true),
                 (WaitAndRetryEnabled, CoreResources.ExperimentalFeatureNames_WaitAndRetry, true, true),
-                (OnlyIfNotExistsEnabled, CoreResources.ExperimentalFeatureNames_OnlyIfNotExists, true, true),
                 (LocalDeployEnabled, "Enable local deploy", true, true),
                 (ExtendableParamFilesEnabled, "Enable extendable parameters", true, false),
                 (ModuleExtensionConfigsEnabled, "Enable defining extension configs for modules", true, true),
-                (DesiredStateConfigurationEnabled, "Enable defining Desired State Configuration documents", true, false),
-                (ModuleIdentityEnabled, "Enable module identity support", true, true),
+                (UserDefinedConstraintsEnabled, "Enable @validate() decorator", true, true),
+                (DeployCommandsEnabled, "Enable deploy commands", true, true),
+                (ThisNamespaceEnabled, "Enable 'this' namespace", true, true),
             })
             {
                 if (enabled)

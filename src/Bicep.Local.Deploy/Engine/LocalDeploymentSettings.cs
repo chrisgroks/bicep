@@ -182,7 +182,7 @@ public class LocalDeploymentSettings : IAzureDeploymentSettings
 
     public KeyValuePair<string, string>[] BlacklistedDeploymentParameters { get; set; } = [];
 
-    public TimeSpan DeploymentJobTimeout { get; set; } = TimeSpan.FromSeconds(60);
+    public TimeSpan DeploymentJobTimeout { get; set; } = TimeSpan.FromHours(6);
 
     public Uri ExtensibilityHostUri { get; set; } = new Uri("https://example.com");
 
@@ -219,9 +219,9 @@ public class LocalDeploymentSettings : IAzureDeploymentSettings
     public IReadOnlyDictionary<string, List<string>> PreviewFeatureTenantDictionary { get; set; } = new Dictionary<string, List<string>>();
     public IReadOnlyDictionary<string, List<string>> PreviewFeatureRegionDictionary { get; set; } = new Dictionary<string, List<string>>();
     public IReadOnlyDictionary<string, decimal> PreviewFeatureThresholdDictionary { get; set; } = new Dictionary<string, decimal>();
-    public IReadOnlyDictionary<string, List<string>> DisabledTenantDictionary { get; set; } = new Dictionary<string, List<string>>();
-    public IReadOnlyDictionary<string, List<string>> DisabledSubscriptionDictionary { get; set; } = new Dictionary<string, List<string>>();
-    public IReadOnlyDictionary<string, List<string>> DisabledRegionDictionary { get; set; } = new Dictionary<string, List<string>>();
+    public IReadOnlyDictionary<string, IEnumerable<string>> DisabledTenantDictionary => ImmutableDictionary<string, IEnumerable<string>>.Empty;
+    public IReadOnlyDictionary<string, IEnumerable<string>> DisabledSubscriptionDictionary => ImmutableDictionary<string, IEnumerable<string>>.Empty;
+    public IReadOnlyDictionary<string, IEnumerable<string>> DisabledRegionDictionary => ImmutableDictionary<string, IEnumerable<string>>.Empty;
     public IEnumerable<string> DisabledThresholdFeatures { get; set; } = [];
 
     public string[] AllowedLocations => ["local", "west us", "east us"];
@@ -280,9 +280,15 @@ public class LocalDeploymentSettings : IAzureDeploymentSettings
 
     public bool PreserveAbsoluteUriInRelativePath => false;
 
-    IReadOnlyDictionary<string, IEnumerable<string>> IAzureDeploymentSettings.DisabledTenantDictionary => ImmutableDictionary<string, IEnumerable<string>>.Empty;
+    public bool AcquirePolicyTokenEnabled => false;
 
-    IReadOnlyDictionary<string, IEnumerable<string>> IAzureDeploymentSettings.DisabledSubscriptionDictionary => ImmutableDictionary<string, IEnumerable<string>>.Empty;
+    public int AcquirePolicyTokenMaxRetryCount => 0;
 
-    IReadOnlyDictionary<string, IEnumerable<string>> IAzureDeploymentSettings.DisabledRegionDictionary => ImmutableDictionary<string, IEnumerable<string>>.Empty;
+    public TimeSpan AcquirePolicyTokenMaxRetryDuration => TimeSpan.Zero;
+
+    public IReadOnlyDictionary<string, IEnumerable<string>> DisabledApplicationDictionary => throw new NotImplementedException();
+
+    public int ExtendedDeploymentLimit => 2500;
+
+    public int ExtendedGroomingJobMinimumThreshold => 2000;
 }

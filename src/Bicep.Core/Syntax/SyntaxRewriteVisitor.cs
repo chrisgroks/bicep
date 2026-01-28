@@ -168,7 +168,8 @@ namespace Bicep.Core.Syntax
 
         protected virtual SyntaxBase VisitParameterAssignmentSyntax(ParameterAssignmentSyntax syntax)
         {
-            var hasChanges = TryRewriteStrict(syntax.Keyword, out var keyword);
+            var hasChanges = TryRewriteStrict(syntax.LeadingNodes, out var leadingNodes);
+            hasChanges |= TryRewriteStrict(syntax.Keyword, out var keyword);
             hasChanges |= TryRewriteStrict(syntax.Name, out var name);
             hasChanges |= TryRewriteStrict(syntax.Assignment, out var assignment);
             hasChanges |= TryRewriteStrict(syntax.Value, out var value);
@@ -178,27 +179,44 @@ namespace Bicep.Core.Syntax
                 return syntax;
             }
 
-            return new ParameterAssignmentSyntax(keyword, name, assignment, value);
+            return new ParameterAssignmentSyntax(leadingNodes, keyword, name, assignment, value);
         }
         void ISyntaxVisitor.VisitParameterAssignmentSyntax(ParameterAssignmentSyntax syntax) => ReplaceCurrent(syntax, VisitParameterAssignmentSyntax);
 
         protected virtual SyntaxBase VisitUsingDeclarationSyntax(UsingDeclarationSyntax syntax)
         {
-            var hasChanges = TryRewriteStrict(syntax.Keyword, out var keyword);
+            var hasChanges = TryRewriteStrict(syntax.LeadingNodes, out var leadingNodes);
+            hasChanges |= TryRewriteStrict(syntax.Keyword, out var keyword);
             hasChanges |= TryRewriteStrict(syntax.Path, out var path);
+            hasChanges |= TryRewriteStrict(syntax.WithClause, out var withClause);
 
             if (!hasChanges)
             {
                 return syntax;
             }
 
-            return new UsingDeclarationSyntax(keyword, path);
+            return new UsingDeclarationSyntax(leadingNodes, keyword, path, withClause);
         }
         void ISyntaxVisitor.VisitUsingDeclarationSyntax(UsingDeclarationSyntax syntax) => ReplaceCurrent(syntax, VisitUsingDeclarationSyntax);
 
-        protected virtual SyntaxBase ReplaceExtendsDeclarationSyntax(ExtendsDeclarationSyntax syntax)
+        protected virtual SyntaxBase ReplaceUsingWithClauseSyntax(UsingWithClauseSyntax syntax)
         {
             var hasChanges = TryRewriteStrict(syntax.Keyword, out var keyword);
+            hasChanges |= TryRewriteStrict(syntax.Config, out var config);
+
+            if (!hasChanges)
+            {
+                return syntax;
+            }
+
+            return new UsingWithClauseSyntax(keyword, config);
+        }
+        void ISyntaxVisitor.VisitUsingWithClauseSyntax(UsingWithClauseSyntax syntax) => ReplaceCurrent(syntax, ReplaceUsingWithClauseSyntax);
+
+        protected virtual SyntaxBase ReplaceExtendsDeclarationSyntax(ExtendsDeclarationSyntax syntax)
+        {
+            var hasChanges = TryRewriteStrict(syntax.LeadingNodes, out var leadingNodes);
+            hasChanges |= TryRewriteStrict(syntax.Keyword, out var keyword);
             hasChanges |= TryRewriteStrict(syntax.Path, out var path);
 
             if (!hasChanges)
@@ -206,7 +224,7 @@ namespace Bicep.Core.Syntax
                 return syntax;
             }
 
-            return new ExtendsDeclarationSyntax(keyword, path);
+            return new ExtendsDeclarationSyntax(leadingNodes, keyword, path);
         }
         void ISyntaxVisitor.VisitExtendsDeclarationSyntax(ExtendsDeclarationSyntax syntax) => ReplaceCurrent(syntax, ReplaceExtendsDeclarationSyntax);
 

@@ -272,6 +272,60 @@ extension baz with {
         }
 
         [TestMethod]
+        public async Task Extension_import_existing_blocked_for_writeonly_resource()
+        {
+            // Create a mock extension with a write only resource (no readable scopes, has writable scopes)
+            var services = CreateServiceBuilder();
+            await ExtensionTestHelper.AddMockExtensions(services, TestContext, CreateMockExtWithWriteOnlyResource());
+
+            var mainUri = new Uri("file:///main.bicep");
+            var files = new Dictionary<Uri, string>
+            {
+                [mainUri] = """
+                extension 'br:mcr.microsoft.com/bicep/extensions/writeonly/v1:1.2.3'
+
+                resource myResource 'writeOnlyType@v1' existing = {
+                  identifier: 'test-resource'
+                }
+                """
+            };
+
+            var compilation = await services.BuildCompilationWithRestore(files, mainUri);
+
+            compilation.Should().HaveDiagnostics(new[] {
+                ("no-unused-existing-resources", DiagnosticLevel.Warning, "Existing resource \"myResource\" is declared but never used."),
+                ("BCP441", DiagnosticLevel.Error, "Resource type \"writeOnlyType@v1\" cannot be used with the 'existing' keyword."),
+            });
+        }
+
+        [TestMethod]
+        public async Task Extension_writeonly_resource_can_be_deployed_normally()
+        {
+            // Create a mock extension with a write only resource
+            var services = CreateServiceBuilder();
+            await ExtensionTestHelper.AddMockExtensions(services, TestContext, CreateMockExtWithWriteOnlyResource());
+
+            var mainUri = new Uri("file:///main.bicep");
+            var files = new Dictionary<Uri, string>
+            {
+                [mainUri] = """
+                extension 'br:mcr.microsoft.com/bicep/extensions/writeonly/v1:1.2.3'
+
+                // Write-only resources should work fine for normal (non-existing) deployment
+                resource myResource 'writeOnlyType@v1' = {
+                  identifier: 'test-resource'
+                }
+
+                output resourceId string = myResource.identifier
+                """
+            };
+
+            var compilation = await services.BuildCompilationWithRestore(files, mainUri);
+
+            compilation.Should().NotHaveAnyDiagnostics();
+        }
+
+        [TestMethod]
         public void Kubernetes_competing_imports_are_blocked()
         {
             var result = CompilationHelper.Compile(CreateServiceBuilder(), @"
@@ -695,7 +749,7 @@ resource parent 'az:Microsoft.Storage/storageAccounts@2020-01-01' existing = {
         [DataRow(
             "MainFile",
             "BCP037",
-            """The property "extensionConfigs" is not allowed on objects of type "module". Permissible properties include "dependsOn", "scope".""")]
+            """The property "extensionConfigs" is not allowed on objects of type "module". Permissible properties include "dependsOn", "identity", "scope".""")]
         public void Extension_config_assignments_raise_error_diagnostic_if_expr_feature_disabled(string scenario, string expectedDiagnosticCode, string expectedDiagnosticMessage)
         {
             var paramsUri = new Uri("file:///main.bicepparam");
@@ -755,15 +809,13 @@ resource parent 'az:Microsoft.Storage/storageAccounts@2020-01-01' existing = {
 
             var compilation = CreateServiceBuilder().BuildCompilation(files, paramsUri);
 
-            var diagByFile = compilation.GetAllDiagnosticsByBicepFileUri();
-
             var fileUriWithDiag = scenario is "ParamsFile" ? paramsUri : mainUri;
 
-            diagByFile[fileUriWithDiag].Should().ContainDiagnostic(expectedDiagnosticCode, DiagnosticLevel.Error, expectedDiagnosticMessage);
+            compilation.GetSourceFileDiagnostics(fileUriWithDiag).Should().ContainDiagnostic(expectedDiagnosticCode, DiagnosticLevel.Error, expectedDiagnosticMessage);
 
             if (scenario is "MainFile")
             {
-                diagByFile[mainUri].Should().ContainDiagnostic("BCP052", DiagnosticLevel.Error, """The type "k8s" does not contain property "config".""");
+                compilation.GetSourceFileDiagnostics(mainUri).Should().ContainDiagnostic("BCP052", DiagnosticLevel.Error, """The type "k8s" does not contain property "config".""");
             }
         }
 
@@ -963,18 +1015,16 @@ resource parent 'az:Microsoft.Storage/storageAccounts@2020-01-01' existing = {
 
             var compilation = await services.BuildCompilationWithRestore(files, paramsUri);
 
-            var diagByFileUri = compilation.GetAllDiagnosticsByBicepFileUri();
-
             if (scenario is "DiscriminatedType_BicepLimitationForSharedPropertiesWithoutDiscrim")
             {
-                diagByFileUri[mainUri].Should().ContainSingleDiagnostic(expectedDiagnosticCode, DiagnosticLevel.Error, expectedDiagnosticMessage);
-                diagByFileUri[paramsUri].Should().ContainDiagnostic("BCP035", DiagnosticLevel.Error, "The specified \"object\" declaration is missing the following required properties: \"b1\".");
+                compilation.GetSourceFileDiagnostics(mainUri).Should().ContainSingleDiagnostic(expectedDiagnosticCode, DiagnosticLevel.Error, expectedDiagnosticMessage);
+                compilation.GetSourceFileDiagnostics(paramsUri).Should().ContainDiagnostic("BCP035", DiagnosticLevel.Error, "The specified \"object\" declaration is missing the following required properties: \"b1\".");
 
                 return;
             }
 
-            diagByFileUri[mainUri].ExcludingLinterDiagnostics().Should().BeEmpty();
-            diagByFileUri[paramsUri].Should().ContainSingleDiagnostic(expectedDiagnosticCode, DiagnosticLevel.Error, expectedDiagnosticMessage);
+            compilation.GetSourceFileDiagnostics(mainUri).ExcludingLinterDiagnostics().Should().BeEmpty();
+            compilation.GetSourceFileDiagnostics(paramsUri).Should().ContainSingleDiagnostic(expectedDiagnosticCode, DiagnosticLevel.Error, expectedDiagnosticMessage);
         }
 
         [TestMethod]
@@ -1009,13 +1059,12 @@ resource parent 'az:Microsoft.Storage/storageAccounts@2020-01-01' existing = {
 
             var compilation = await services.BuildCompilationWithRestore(files, paramsUri);
 
-            var diagByFileUri = compilation.GetAllDiagnosticsByBicepFileUri();
-            diagByFileUri[mainUri].ExcludingLinterDiagnostics().Should().BeEmpty();
-            diagByFileUri[paramsUri].Should().ContainSingleDiagnostic("BCP424", DiagnosticLevel.Error, "The following extensions are declared in the Bicep file but are missing a configuration assignment in the params files: \"mockExtDiscrim\", \"mockExtDiscrim2\", \"mockExtObj\".");
+            compilation.GetSourceFileDiagnostics(mainUri).ExcludingLinterDiagnostics().Should().BeEmpty();
+            compilation.GetSourceFileDiagnostics(paramsUri).Should().ContainSingleDiagnostic("BCP424", DiagnosticLevel.Error, "The following extensions are declared in the Bicep file but are missing a configuration assignment in the params files: \"mockExtDiscrim\", \"mockExtDiscrim2\", \"mockExtObj\".");
 
             var paramsCompilationResult = CompilationHelper.CompileParams(compilation);
 
-            var codeFixDiag = diagByFileUri[paramsUri].Single(d => d.Code == "BCP424");
+            var codeFixDiag = compilation.GetSourceFileDiagnostics(paramsUri).Single(d => d.Code == "BCP424");
 
             paramsCompilationResult.ApplyCodeFix(codeFixDiag)
                 .Should()
@@ -1124,6 +1173,32 @@ resource parent 'az:Microsoft.Storage/storageAccounts@2020-01-01' existing = {
                                     ["b1"] = new(ctx.CoreStringTypeRef, ObjectTypePropertyFlags.Required, null)
                                 })
                         }))
+                });
+
+        private static MockExtensionData CreateMockExtWithWriteOnlyResource(string extName = "writeonly") =>
+            ExtensionTestHelper.CreateMockExtensionMockData(
+                extName, "1.2.3", "v1", new CustomExtensionTypeFactoryDelegates
+                {
+                    CreateResourceTypes = (ctx, tf) =>
+                    {
+                        var bodyType = tf.Create(() => new ObjectType(
+                            "writeOnlyBody",
+                            new Dictionary<string, ObjectTypeProperty>
+                            {
+                                ["identifier"] = new(ctx.CoreStringTypeRef, ObjectTypePropertyFlags.Required | ObjectTypePropertyFlags.Identifier, "The resource identifier")
+                            },
+                            null));
+
+                        // Create a write only resource: no readable scopes, but has writable scopes
+                        var writeOnlyType = tf.Create(() => new ResourceType(
+                            "writeOnlyType@v1",
+                            tf.GetReference(bodyType),
+                            null,
+                            writableScopes_in: ScopeType.All,
+                            readableScopes_in: (ScopeType)0)); // No readable scopes makes it write only
+
+                        return [writeOnlyType];
+                    }
                 });
 
         #endregion

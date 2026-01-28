@@ -49,7 +49,7 @@ namespace Bicep.Cli.Commands
             try
             {
                 var jsonContents = this.fileExplorer.GetFile(inputUri).ReadAllText();
-                var decompilation = decompiler.DecompileParameters(jsonContents, outputUri.ToUri(), bicepUri?.ToUri());
+                var decompilation = decompiler.DecompileParameters(jsonContents, outputUri, bicepUri);
 
                 if (args.OutputToStdOut)
                 {
@@ -64,7 +64,7 @@ namespace Bicep.Cli.Commands
             }
             catch (Exception exception)
             {
-                io.Error.WriteLine(string.Format(CliResources.DecompilationFailedFormat, inputUri, exception.Message));
+                io.Error.Writer.WriteLine(string.Format(CliResources.DecompilationFailedFormat, inputUri, exception.Message));
                 return 1;
             }
         }

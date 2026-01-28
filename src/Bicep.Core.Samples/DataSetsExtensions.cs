@@ -3,6 +3,7 @@
 
 using System.Collections.Immutable;
 using Bicep.Core.Configuration;
+using Bicep.Core.Extensions;
 using Bicep.Core.FileSystem;
 using Bicep.Core.Modules;
 using Bicep.Core.Registry;
@@ -53,7 +54,7 @@ namespace Bicep.Core.Samples
                 .GetCompiler();
 
             var fileUri = PathHelper.FilePathToFileUrl(Path.Combine(outputDirectory, DataSet.TestFileMain));
-            var compilation = await compiler.CreateCompilation(fileUri);
+            var compilation = await compiler.CreateCompilation(fileUri.ToIOUri());
 
             return (compilation, outputDirectory, fileUri);
         }
@@ -100,7 +101,7 @@ namespace Bicep.Core.Samples
         }
 
         public static ITemplateSpecRepositoryFactory CreateEmptyTemplateSpecRepositoryFactory()
-            => CreateMockTemplateSpecRepositoryFactory(ImmutableDictionary<string, DataSet.ExternalModuleInfo>.Empty);
+            => CreateMockTemplateSpecRepositoryFactory([]);
 
         public static ITemplateSpecRepositoryFactory CreateMockTemplateSpecRepositoryFactory(this DataSet dataSet, TestContext _)
             => CreateMockTemplateSpecRepositoryFactory(dataSet.TemplateSpecs);

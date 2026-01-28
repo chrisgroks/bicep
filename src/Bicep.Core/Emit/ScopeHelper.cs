@@ -37,11 +37,6 @@ namespace Bicep.Core.Emit
 
         private static ScopeData? ValidateScope(SemanticModel semanticModel, LogInvalidScopeDiagnostic logInvalidScopeFunc, ResourceScope supportedScopes, SyntaxBase bodySyntax, SyntaxBase? scopeValue)
         {
-            // If the DSC feature is enabled the scope is added to the supported scopes here so it doesn't have to be added to the Azure types.
-            if (semanticModel.Configuration.ExperimentalFeaturesEnabled.DesiredStateConfiguration)
-            {
-                supportedScopes |= ResourceScope.DesiredStateConfiguration;
-            }
             if (semanticModel.Configuration.ExperimentalFeaturesEnabled.LocalDeploy)
             {
                 supportedScopes |= ResourceScope.Local;
@@ -275,7 +270,7 @@ namespace Bicep.Core.Emit
                     var parentResourceId = FormatFullyQualifiedResourceId(
                         context,
                         converter,
-                        context.ResourceScopeData[resource],
+                        context.SemanticModel.ResourceScopeData[resource],
                         resource.TypeReference.FormatType(),
                         scopingResourceNameSegments);
 
@@ -306,7 +301,7 @@ namespace Bicep.Core.Emit
                     var parentResourceId = FormatUnqualifiedResourceId(
                         context,
                         converter,
-                        context.ResourceScopeData[resource],
+                        context.SemanticModel.ResourceScopeData[resource],
                         resource.TypeReference.FormatType(),
                         converter.GetResourceNameSegments(resource));
 

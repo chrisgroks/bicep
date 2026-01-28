@@ -28,11 +28,11 @@ namespace Bicep.LangServer.UnitTests
 
             var sourceFileFactory = services.Construct<ISourceFileFactory>();
             var sourceFile = sourceFileFactory.CreateBicepFile(fileUri.ToUriEncoded().ToIOUri(), DataSets.Parameters_LF.Bicep);
-            var workspace = new Workspace();
+            var workspace = new ActiveSourceFileSet();
             workspace.UpsertSourceFile(sourceFile);
 
             var provider = services.Construct<BicepCompilationProvider>();
-            var context = provider.Create(workspace, fileUri, ImmutableDictionary<ISourceFile, ISemanticModel>.Empty);
+            var context = provider.Create(workspace, fileUri, []);
 
             context.Compilation.Should().NotBeNull();
             // TODO: remove Where when the support of modifiers is dropped.

@@ -38,11 +38,10 @@ public static class ExtensionResourceTypeHelper
 
         var requestType = factory.Create(() => new ResourceType(
             "request@v1",
-            ScopeType.Unknown,
-            null,
             factory.GetReference(requestBodyType),
-            ResourceFlags.None,
-            null));
+            null,
+            writableScopes_in: ScopeType.All,
+            readableScopes_in: ScopeType.All));
 
         var settings = new TypeSettings(
             name: "http",
@@ -56,6 +55,7 @@ public static class ExtensionResourceTypeHelper
                 [requestType.Name] = new CrossFileTypeReference("v1/types.json", factory.GetIndex(requestType)),
             },
             new Dictionary<string, IReadOnlyDictionary<string, IReadOnlyList<CrossFileTypeReference>>>(),
+            [],
             settings,
             null);
 
@@ -99,14 +99,13 @@ public static class ExtensionResourceTypeHelper
 
         var fooType = factory.Create(() => new ResourceType(
             "fooType@v1",
-            ScopeType.Unknown,
-            null,
             factory.GetReference(fooBodyType),
-            ResourceFlags.None,
             new Dictionary<string, ResourceTypeFunction>
             {
                 ["convertBarToBaz"] = new(factory.GetReference(barFunctionType), "Converts a bar into a baz!")
-            }));
+            },
+            writableScopes_in: ScopeType.All,
+            readableScopes_in: ScopeType.All));
 
         var settings = new TypeSettings(name: "ThirdPartyExtension", version: "1.0.0", isSingleton: false, configurationType: null!);
 
@@ -114,6 +113,7 @@ public static class ExtensionResourceTypeHelper
         {
             [fooType.Name] = new CrossFileTypeReference("types.json", factory.GetIndex(fooType)),
         }, new Dictionary<string, IReadOnlyDictionary<string, IReadOnlyList<CrossFileTypeReference>>>(),
+            [],
             settings,
             null);
 
@@ -142,14 +142,13 @@ public static class ExtensionResourceTypeHelper
 
         var fooType = factory.Create(() => new ResourceType(
             "fooType@v1",
-            ScopeType.Unknown,
-            null,
             factory.GetReference(fooBodyType),
-            ResourceFlags.None,
             new Dictionary<string, ResourceTypeFunction>
             {
                 ["convertBarToBaz"] = new(factory.GetReference(barFunctionType), "Converts a bar into a baz!")
-            }));
+            },
+            writableScopes_in: ScopeType.All,
+            readableScopes_in: ScopeType.All));
 
         //setup fallback resource
         var fallbackBodyType = rootFactory.Create(() => new ObjectType("fallback body", new Dictionary<string, ObjectTypeProperty>
@@ -159,11 +158,10 @@ public static class ExtensionResourceTypeHelper
 
         var fallbackType = rootFactory.Create(() => new ResourceType(
             "fallback",
-            ScopeType.Unknown,
-            null,
             rootFactory.GetReference(fallbackBodyType),
-            ResourceFlags.None,
-            null));
+            null,
+            writableScopes_in: ScopeType.All,
+            readableScopes_in: ScopeType.All));
 
         var fallbackResource = new CrossFileTypeReference("types.json", rootFactory.GetIndex(fallbackType));
 
@@ -181,6 +179,7 @@ public static class ExtensionResourceTypeHelper
         {
             [fooType.Name] = new CrossFileTypeReference("v1/types.json", factory.GetIndex(fooType)),
         }, new Dictionary<string, IReadOnlyDictionary<string, IReadOnlyList<CrossFileTypeReference>>>(),
+            [],
             settings,
             fallbackResource);
 
@@ -210,11 +209,10 @@ public static class ExtensionResourceTypeHelper
 
         var awsBucketsType = factory.Create(() => new ResourceType(
             "AWS.S3/Bucket@default",
-            ScopeType.Unknown,
-            null,
             factory.GetReference(awsBucketsBodyType),
-            ResourceFlags.None,
-            null));
+            null,
+            writableScopes_in: ScopeType.All,
+            readableScopes_in: ScopeType.All));
 
         var environmentsBodyType = factory.Create(() => new ObjectType("body", new Dictionary<string, ObjectTypeProperty>
         {
@@ -224,11 +222,10 @@ public static class ExtensionResourceTypeHelper
 
         var environmentsType = factory.Create(() => new ResourceType(
             "Applications.Core/environments@2023-10-01-preview",
-            ScopeType.Unknown,
-            null,
             factory.GetReference(environmentsBodyType),
-            ResourceFlags.None,
-            null));
+            null,
+            writableScopes_in: ScopeType.All,
+            readableScopes_in: ScopeType.All));
 
         var applicationsBodyType = factory.Create(() => new ObjectType("body", new Dictionary<string, ObjectTypeProperty>
         {
@@ -238,11 +235,10 @@ public static class ExtensionResourceTypeHelper
 
         var applicationsType = factory.Create(() => new ResourceType(
             "Applications.Core/applications@2023-10-01-preview",
-            ScopeType.Unknown,
-            null,
             factory.GetReference(applicationsBodyType),
-            ResourceFlags.None,
-            null));
+            null,
+            writableScopes_in: ScopeType.All,
+            readableScopes_in: ScopeType.All));
 
         var recipeType = factory.Create(() => new ObjectType("recipe", new Dictionary<string, ObjectTypeProperty>
         {
@@ -264,11 +260,10 @@ public static class ExtensionResourceTypeHelper
 
         var extendersType = factory.Create(() => new ResourceType(
             "Applications.Core/extenders@2023-10-01-preview",
-            ScopeType.Unknown,
-            null,
             factory.GetReference(extendersBodyType),
-            ResourceFlags.None,
-            null));
+            null,
+            writableScopes_in: ScopeType.All,
+            readableScopes_in: ScopeType.All));
 
         var settings = new TypeSettings(name: "Radius", version: "1.0.0", isSingleton: false, configurationType: null!);
 
@@ -282,8 +277,63 @@ public static class ExtensionResourceTypeHelper
         var index = new TypeIndex(
             resourceTypes.ToDictionary(x => x.Name, x => new CrossFileTypeReference("types.json", factory.GetIndex(x))),
             new Dictionary<string, IReadOnlyDictionary<string, IReadOnlyList<CrossFileTypeReference>>>(),
+            [],
             settings,
             null);
+
+        return GetTypesTgzBytesFromFiles(
+            ("index.json", StreamHelper.GetString(stream => TypeSerializer.SerializeIndex(stream, index))),
+            ("types.json", StreamHelper.GetString(stream => TypeSerializer.Serialize(stream, factory.GetTypes()))));
+    }
+
+    public static BinaryData GetMockDesiredStateConfigurationTypesTgz()
+    {
+        var factory = new TypeFactory([]);
+
+        var stringType = factory.Create(() => new StringType());
+        var booleanType = factory.Create(() => new BooleanType());
+        var anyType = factory.Create(() => new AnyType());
+
+        var echoBodyType = factory.Create(() => new ObjectType("body", new Dictionary<string, ObjectTypeProperty>
+        {
+            ["name"] = new(factory.GetReference(stringType), ObjectTypePropertyFlags.None, "the resource name"),
+            ["output"] = new(factory.GetReference(stringType), ObjectTypePropertyFlags.Identifier, null),
+            ["showSecrets"] = new(factory.GetReference(booleanType), ObjectTypePropertyFlags.Identifier, null),
+        }, null));
+
+        var echoType = factory.Create(() => new ResourceType(
+            "Microsoft.DSC.Debug/Echo@1.0.0",
+            factory.GetReference(echoBodyType),
+            null,
+            // TODO: The Azure types package doesn't have the DSC scope so this is the best we can do for now.
+            writableScopes_in: ScopeType.All,
+            readableScopes_in: ScopeType.All));
+
+        // Setup a fallback resource type to support unknown DSC resources (with SemVer).
+        // Use AnyType directly as the body to allow any properties.
+        var fallbackType = factory.Create(() => new ResourceType(
+            "fallback",
+            factory.GetReference(anyType),
+            null,
+            // TODO: Ditto above.
+            writableScopes_in: ScopeType.All,
+            readableScopes_in: ScopeType.All));
+
+        var fallbackResource = new CrossFileTypeReference("types.json", factory.GetIndex(fallbackType));
+
+        // TODO: What to pass for conigurationType?
+        var settings = new TypeSettings(name: "DesiredStateConfiguration", version: "0.1.0", isSingleton: false, configurationType: null!);
+
+        var resourceTypes = new[] {
+            echoType,
+        };
+
+        var index = new TypeIndex(
+            resourceTypes.ToDictionary(x => x.Name, x => new CrossFileTypeReference("types.json", factory.GetIndex(x))),
+            new Dictionary<string, IReadOnlyDictionary<string, IReadOnlyList<CrossFileTypeReference>>>(),
+            [],
+            settings,
+            fallbackResource);
 
         return GetTypesTgzBytesFromFiles(
             ("index.json", StreamHelper.GetString(stream => TypeSerializer.SerializeIndex(stream, index))),
@@ -361,6 +411,7 @@ public static class ExtensionResourceTypeHelper
         var index = new TypeIndex(
             resourceTypes.ToDictionary(x => x.Name, x => new CrossFileTypeReference("types.json", typesJsonTypeContext.TypeFactory.GetIndex(x))),
             new Dictionary<string, IReadOnlyDictionary<string, IReadOnlyList<CrossFileTypeReference>>>(),
+            [],
             settings,
             null);
 
