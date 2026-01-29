@@ -4,7 +4,7 @@
   "description": "[Open VSX Fork] Bicep language support for Visual Studio Code. Unmodified fork of Azure/bicep for Open VSX compatibility.",
   "author": "Microsoft Corporation",
   "license": "MIT",
-  "version": "0.0.0-placeholder",
+  "version": "0.40.2",
   "publisher": "chrisatwindsurf",
   "icon": "icons/bicep-logo-256.png",
   "preview": false,
