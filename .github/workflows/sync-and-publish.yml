@@ -65,7 +65,19 @@ jobs:
         run: |
           git remote add upstream https://github.com/Azure/bicep.git
           git fetch upstream main
-          git merge upstream/main --no-edit -m "Sync with upstream (automated)"
+          
+          # Try to merge, handle conflicts by preferring upstream for most files
+          if ! git merge upstream/main --no-edit -m "Sync with upstream (automated)"; then
+            echo "⚠️ Merge conflict detected, resolving..."
+            
+            # For conflicts, prefer upstream version except for package.json (preserve our metadata)
+            git checkout --theirs . || true
+            git checkout --ours src/vscode-bicep/package.json || true
+            
+            # Stage all resolved files
+            git add -A
+            git commit -m "Sync with upstream (automated, conflicts resolved)"
+          fi
 
       - name: Update version in package.json
         working-directory: src/vscode-bicep
@@ -93,7 +105,9 @@ jobs:
           echo "VSIX_FILE=src/vscode-bicep/$(ls *.vsix)" >> $GITHUB_ENV
 
       - name: Push sync commit
-        run: git push origin main
+        run: |
+          git pull origin main --rebase || true
+          git push origin main
 
       - name: Create draft release
         uses: softprops/action-gh-release@v1
